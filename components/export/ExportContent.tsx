@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { 
   FileTextIcon, 
@@ -57,36 +57,41 @@ export default function ExportContent({
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const { toast } = useToast();
 
-  const { execute: runRescore, error: rescoreError } = useAsyncAction(
-    async () => {
-      const res = await fetch("/api/rescore", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: doc.id })
-      });
+  const action = useCallback(async () => {
+    const res = await fetch("/api/rescore", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId: doc.id })
+    });
 
-      if (!res.ok) throw new Error("Rescore failed");
+    if (!res.ok) throw new Error("Rescore failed");
 
-      const data = await res.json();
-      if (data.scores) {
-        setFinalScores(data.scores);
-      } else {
-        throw new Error("Invalid rescore response");
-      }
-    },
-    {
-      onTimeout: () => {
-        toast("Rescoring is taking longer than expected.", "error");
-      }
+    const data = await res.json();
+    if (data.scores) {
+      setFinalScores(data.scores);
+    } else {
+      throw new Error("Invalid rescore response");
     }
+  }, [doc.id]);
+
+  const onTimeout = useCallback(() => {
+    toast("Rescoring is taking longer than expected.", "error");
+  }, [toast]);
+
+  const { execute: runRescore, error: rescoreError } = useAsyncAction(
+    action,
+    { onTimeout }
   );
+
+  const hasTriggeredRef = useRef(false);
 
   // Trigger rescore on mount if not already done
   useEffect(() => {
-    if (diagnosis.average_score_final === null) {
+    if (diagnosis.average_score_final === null && !hasTriggeredRef.current) {
+      hasTriggeredRef.current = true;
       runRescore();
     }
-  }, [doc.id, diagnosis.average_score_final, runRescore]);
+  }, [diagnosis.average_score_final, runRescore]);
 
   const handleCopy = async () => {
     if (!cleanup.final_content) return;

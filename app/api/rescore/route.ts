@@ -5,6 +5,8 @@ import { DiagnosisResponse, LanguageVariant, ContentType } from "@/lib/anthropic
 import { getDiagnoseSystemPrompt } from "@/lib/anthropic/prompts/diagnose";
 import { calculateSignalScore, calculateAverageScore } from "@/lib/utils/scoring";
 
+export const maxDuration = 60;
+
 export async function POST(req: Request) {
   const supabase = createClient();
   let documentId: string | null = null;
