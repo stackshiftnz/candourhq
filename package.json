@@ -9,18 +9,35 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.89.0",
+    "@react-pdf/renderer": "^4.4.1",
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.103.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "docx": "^9.6.1",
+    "lucide-react": "^1.8.0",
+    "mammoth": "^1.12.0",
+    "next": "14.2.35",
+    "pdf-parse": "^2.4.5",
     "react": "^18",
     "react-dom": "^18",
-    "next": "14.2.35"
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
-    "typescript": "^5",
-    "@types/node": "^20",
+    "@types/node": "^20.19.39",
+    "@types/pdf-parse": "^1.1.5",
+    "@types/pg": "^8.20.0",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.1",
+    "dotenv": "^17.4.2",
     "eslint": "^8",
-    "eslint-config-next": "14.2.35"
+    "eslint-config-next": "14.2.35",
+    "pg": "^8.20.0",
+    "postcss": "^8",
+    "puppeteer": "^24.41.0",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
   }
 }

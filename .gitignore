@@ -34,3 +34,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# context spec files (keep .gitkeep only)
+_context/**
+!_context/.gitkeep
+.gstack/
