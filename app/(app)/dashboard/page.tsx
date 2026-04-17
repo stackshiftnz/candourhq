@@ -17,6 +17,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   ai_cliche: "AI clichés",
   redundant_list: "Redundant phrasing",
   repetition: "Repetition",
+  generic_phrasing: "Generic phrasing",
   brand_mismatch: "Brand mismatch",
 };
 
@@ -40,6 +41,7 @@ const CATEGORY_PRIORITY: Record<string, "trust" | "substance" | "style"> = {
   ai_cliche: "style",
   redundant_list: "style",
   repetition: "style",
+  generic_phrasing: "style",
 };
 
 // ---------------------------------------------------------------------------
@@ -349,7 +351,8 @@ export default async function DashboardPage() {
             </p>
             <p className="text-xl lg:text-2xl font-bold text-brand-dark mt-3 lg:mt-4 leading-tight truncate">
               {mostCommonEntry
-                ? CATEGORY_LABELS[mostCommonEntry[0]] ?? mostCommonEntry[0]
+                ? (CATEGORY_LABELS[mostCommonEntry[0]] ||
+                  (mostCommonEntry[0].charAt(0).toUpperCase() + mostCommonEntry[0].slice(1)).replace(/_/g, " "))
                 : "—"}
             </p>
             <p className="text-[13px] font-medium text-gray-400 mt-1 tracking-tight">
@@ -493,7 +496,8 @@ export default async function DashboardPage() {
                       className="flex items-center gap-4 w-full"
                     >
                       <p className="text-[13px] font-bold text-brand-dark w-[120px] flex-shrink-0 truncate">
-                        {CATEGORY_LABELS[category] ?? category}
+                        {CATEGORY_LABELS[category] ||
+                          (category.charAt(0).toUpperCase() + category.slice(1)).replace(/_/g, " ")}
                       </p>
                       <div className="flex-1 h-[22px] bg-[#f8f6f0] rounded-full overflow-hidden flex items-center pr-1">
                         <div

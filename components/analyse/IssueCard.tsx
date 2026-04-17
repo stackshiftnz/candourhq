@@ -18,6 +18,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   ai_cliche: "bg-[#FCE7F3] text-[#72243E]",
   redundant_list: "bg-[#FCE7F3] text-[#72243E]",
   repetition: "bg-[#FCE7F3] text-[#72243E]",
+  generic_phrasing: "bg-[#FCE7F3] text-[#72243E]",
   brand_mismatch: "bg-[#EEEDFE] text-[#3C3489]",
 };
 

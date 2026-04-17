@@ -12,6 +12,7 @@ export type IssueCategory =
   | 'ai_cliche'
   | 'redundant_list'
   | 'repetition'
+  | 'generic_phrasing'
   | 'brand_mismatch'
 
 export type IssuePriority = 'trust' | 'substance' | 'style'
