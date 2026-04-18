@@ -48,6 +48,7 @@ Rules:
 6. Replace any banned phrases found.
 7. Preserve approved phrases exactly.
 8. Keep paragraph count the same.
+9. Punctuation Rules: No Em-Dashes. NEVER USE EM-DASHES (—). This is a critical requirement. Do not use the em-dash character anywhere. Alternatives: Use two sentences, commas, parentheses, or colons.
 
 Return ONLY valid JSON — no preamble, no markdown fences:
 {
