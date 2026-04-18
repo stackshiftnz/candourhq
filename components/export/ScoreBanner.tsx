@@ -8,6 +8,7 @@ interface ScoreBannerProps {
   resolvedCount: number;
   totalCount: number;
   profileName: string;
+  rescoreError?: boolean;
 }
 
 export function ScoreBanner({
@@ -15,10 +16,11 @@ export function ScoreBanner({
   finalScore,
   resolvedCount,
   totalCount,
-  profileName
+  profileName,
+  rescoreError,
 }: ScoreBannerProps) {
   const isFullyResolved = resolvedCount === totalCount;
-  const isPending = finalScore === null;
+  const isPending = finalScore === null && !rescoreError;
 
   return (
     <div
@@ -46,16 +48,26 @@ export function ScoreBanner({
           {originalScore.toFixed(1)}
         </span>
         <span className="text-[20px] text-gray-400">→</span>
-        <div className="flex items-baseline gap-1">
+        <div className="flex items-baseline gap-1 min-w-[50px] justify-end">
           {isPending ? (
             <Spinner size="md" className="text-gray-400" />
+          ) : rescoreError && finalScore === null ? (
+            <>
+              <span className={cn(
+                "text-[28px] font-semibold",
+                isFullyResolved ? "text-green-700/50" : "text-amber-700/50"
+              )}>
+                {originalScore.toFixed(1)}
+              </span>
+              <span className="text-[14px] text-gray-400 font-medium">/10</span>
+            </>
           ) : (
             <>
               <span className={cn(
                 "text-[28px] font-semibold",
                 isFullyResolved ? "text-green-700" : "text-amber-700"
               )}>
-                {finalScore.toFixed(1)}
+                {finalScore!.toFixed(1)}
               </span>
               <span className="text-[14px] text-gray-400 font-medium">/10</span>
             </>

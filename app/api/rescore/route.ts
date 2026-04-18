@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 
     // 4. Send to Anthropic (same as /api/analyse but with cleaned content)
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 4000,
       system: systemPrompt,
       messages: [
@@ -150,7 +150,7 @@ export async function POST(req: Request) {
     console.error("[CHQ-002] Anthropic API error in /api/rescore:", {
       message: errMessage,
       status: errStatus,
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
     });
     return NextResponse.json(
       { error: "Score recalculation failed", scores: null },

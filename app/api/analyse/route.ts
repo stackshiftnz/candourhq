@@ -96,7 +96,7 @@ export async function POST(req: Request) {
       cache_control: { type: "ephemeral" },
     };
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 4000,
       system: [systemBlock],
       messages: [
@@ -194,7 +194,7 @@ export async function POST(req: Request) {
     console.error("[CHQ-001] Anthropic API error in /api/analyse:", {
       message: errMessage,
       status: errStatus,
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
     });
     if (documentId) {
       const errorSupabase = createClient();

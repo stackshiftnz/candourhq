@@ -80,7 +80,10 @@ export default function ExportContent({
 
   const { execute: runRescore, error: rescoreError } = useAsyncAction(
     action,
-    { onTimeout }
+    { 
+      timeoutMs: 55000,
+      onTimeout 
+    }
   );
 
   const hasTriggeredRef = useRef(false);
@@ -179,6 +182,7 @@ export default function ExportContent({
               resolvedCount={cleanup.issues_resolved}
               totalCount={cleanup.issues_total}
               profileName={brandProfile?.name || "Standard Profile"}
+              rescoreError={!!rescoreError}
             />
 
             <section className="mb-12">
