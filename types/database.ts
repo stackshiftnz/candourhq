@@ -72,6 +72,23 @@ export interface UserEdit {
   edited_at: string
 }
 
+export interface BrandProfileSnapshot {
+  id: string
+  name: string
+  language_variant: string
+  tone: string
+  writing_examples: string[]
+  banned_phrases: string[]
+  approved_phrases: string[]
+  captured_at: string
+}
+
+export interface ExecutiveSummary {
+  bullets: string[]
+  model: string
+  generated_at: string
+}
+
 export interface SampleEventMetadata {
   tab?: string
   tag?: string
@@ -414,6 +431,9 @@ export interface Database {
           pause_cards_answered: number
           user_edits: UserEdit[]
           final_content: string | null
+          brand_profile_snapshot: BrandProfileSnapshot | null
+          executive_summary: ExecutiveSummary | null
+          content_hash: string | null
           created_at: string
           updated_at: string
         }
@@ -428,6 +448,9 @@ export interface Database {
           pause_cards_answered?: number
           user_edits?: UserEdit[]
           final_content?: string | null
+          brand_profile_snapshot?: BrandProfileSnapshot | null
+          executive_summary?: ExecutiveSummary | null
+          content_hash?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -442,6 +465,9 @@ export interface Database {
           pause_cards_answered?: number
           user_edits?: UserEdit[]
           final_content?: string | null
+          brand_profile_snapshot?: BrandProfileSnapshot | null
+          executive_summary?: ExecutiveSummary | null
+          content_hash?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -504,6 +530,91 @@ export interface Database {
           user_id?: string
           event_type?: string
           metadata?: SampleEventMetadata | null
+          created_at?: string
+        }
+      }
+      cleanup_revisions: {
+        Row: {
+          id: string
+          cleanup_id: string
+          document_id: string
+          user_id: string | null
+          event_type: string
+          paragraphs: CleanupParagraph[]
+          user_edits: UserEdit[]
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          cleanup_id: string
+          document_id: string
+          user_id?: string | null
+          event_type: string
+          paragraphs: CleanupParagraph[]
+          user_edits?: UserEdit[]
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          cleanup_id?: string
+          document_id?: string
+          user_id?: string | null
+          event_type?: string
+          paragraphs?: CleanupParagraph[]
+          user_edits?: UserEdit[]
+          metadata?: Json
+          created_at?: string
+        }
+      }
+      api_events: {
+        Row: {
+          id: string
+          user_id: string | null
+          document_id: string | null
+          event_type: string
+          event_category: string
+          model: string | null
+          input_tokens: number | null
+          output_tokens: number | null
+          cache_read_tokens: number | null
+          cache_write_tokens: number | null
+          latency_ms: number | null
+          word_count: number | null
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          document_id?: string | null
+          event_type: string
+          event_category: string
+          model?: string | null
+          input_tokens?: number | null
+          output_tokens?: number | null
+          cache_read_tokens?: number | null
+          cache_write_tokens?: number | null
+          latency_ms?: number | null
+          word_count?: number | null
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          document_id?: string | null
+          event_type?: string
+          event_category?: string
+          model?: string | null
+          input_tokens?: number | null
+          output_tokens?: number | null
+          cache_read_tokens?: number | null
+          cache_write_tokens?: number | null
+          latency_ms?: number | null
+          word_count?: number | null
+          metadata?: Json
           created_at?: string
         }
       }

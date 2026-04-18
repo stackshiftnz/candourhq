@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/lib/hooks/useToast";
 import { Tabs } from "@/components/ui/Tabs";
 import { getWordCount } from "@/lib/utils/word-count";
+import { trackEvent } from "@/lib/telemetry/client";
 
 type Document = Database["public"]["Tables"]["documents"]["Row"];
 type Diagnosis = Database["public"]["Tables"]["diagnoses"]["Row"];
@@ -95,7 +96,10 @@ export default function DiagnosisPage() {
         .limit(1)
         .single();
 
-      if (diag) setDiagnosis(diag);
+      if (diag) {
+        setDiagnosis(diag);
+        trackEvent("screen_view", id, { screen: "analyse", issue_count: (diag.issues as unknown as DiagnosisIssue[] || []).length });
+      }
       setLoading(false);
     } else if (doc.status === "pending") {
       // Auto-trigger analysis — guard against double-fire (React strict mode,
@@ -205,32 +209,19 @@ export default function DiagnosisPage() {
   const handleStartCleanup = async () => {
     if (!doc) return;
     setIsCleaning(true);
-    
+
+    // Clean page owns the /api/clean fetch lifecycle so users see paragraphs
+    // stream in on the destination screen instead of waiting on a spinner here.
+    // We flip status to "cleaning" here so a refresh mid-generation still lands
+    // the user in the right place.
     try {
-      // 1. Update status to cleaning
       await supabase
         .from("documents")
         .update({ status: "cleaning" })
         .eq("id", id);
-      
-      // 2. Call api/clean (currently 501, but we follow the plan)
-      const res = await fetch("/api/clean", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: id }),
-      });
-
-      if (res.ok) {
-        router.push(`/clean/${id}`);
-      } else {
-        // Fallback or error handled by UI
-        console.warn("Clean API returned error/not implemented", await res.text());
-        // For now, since we know it's 501, we might just stay here or show an error
-        setIsCleaning(false);
-        setError("Cleanup function not yet available.");
-      }
+      router.push(`/clean/${id}`);
     } catch (e) {
-      console.error("Cleanup failed", e);
+      console.error("Cleanup navigation failed", e);
       setIsCleaning(false);
     }
   };
@@ -385,6 +376,12 @@ export default function DiagnosisPage() {
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
+      {/* Screen reader announcement of analysis result */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {issueCount === 0
+          ? "Diagnosis complete. No issues flagged."
+          : `Diagnosis complete. ${issueCount} ${issueCount === 1 ? "issue" : "issues"} flagged. Estimated ${estimatedMinutes} minutes to clean.`}
+      </div>
       {/* Topbar */}
       <header className="h-[48px] px-6 border-b border-gray-100 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
@@ -411,7 +408,7 @@ export default function DiagnosisPage() {
             <Button variant="secondary" size="sm" className="hidden lg:flex">History</Button>
           </Link>
           <Button variant="primary" size="sm" onClick={handleStartCleanup}>
-            Start clean-up
+            {issueCount === 0 ? "Skip to export" : "Start clean-up"}
           </Button>
         </div>
       </header>
@@ -510,7 +507,18 @@ export default function DiagnosisPage() {
             <span className="text-[12px] text-gray-400 font-medium">{data.issues.length} flagged</span>
           </div>
           <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar" ref={issuesColumnRef}>
-            <div className="space-y-8">
+            {issueCount === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center py-12 px-4">
+                <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4 text-emerald-600">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                </div>
+                <h3 className="text-[15px] font-semibold text-gray-900 mb-1">This content is already brand-aligned</h3>
+                <p className="text-[13px] text-gray-500 leading-relaxed max-w-[280px]">
+                  No substance, style, or trust issues flagged. You can skip clean-up and go straight to export.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-8">
               {["trust", "substance", "style"].map(priority => {
                 const priorityIssues = data.issues.filter(i => i.priority === priority);
                 if (priorityIssues.length === 0) return null;
@@ -536,12 +544,13 @@ export default function DiagnosisPage() {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            )}
           </div>
           <div className="hidden lg:flex items-center justify-between px-6 py-3 border-t border-gray-100 bg-white shrink-0">
             <span className="text-[12px] font-medium text-gray-500">{effortLabel}</span>
             <Button variant="primary" size="sm" onClick={handleStartCleanup}>
-              Start clean-up
+              {issueCount === 0 ? "Skip to export" : "Start clean-up"}
             </Button>
           </div>
         </div>
@@ -552,7 +561,7 @@ export default function DiagnosisPage() {
       <div className="lg:hidden shrink-0 border-t border-gray-100 bg-white px-4 py-3 flex items-center justify-between gap-3">
         <span className="text-[12px] font-medium text-gray-500 truncate">{effortLabel}</span>
         <Button variant="primary" size="sm" onClick={handleStartCleanup}>
-          Start clean-up
+          {issueCount === 0 ? "Skip to export" : "Start clean-up"}
         </Button>
       </div>
 

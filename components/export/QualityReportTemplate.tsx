@@ -1,13 +1,20 @@
 import React from "react";
-import { 
-  Document, 
-  Page, 
-  Text, 
-  View, 
-  StyleSheet 
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet
 } from "@react-pdf/renderer";
 import { format } from "date-fns";
 import { DiagnosisIssue, CleanupParagraph, ChangeTag } from "@/lib/anthropic/types";
+import type { BrandProfileSnapshot, ExecutiveSummary, UserEdit } from "@/types/database";
+
+function truncate(value: string, max: number): string {
+  if (!value) return "";
+  if (value.length <= max) return value;
+  return `${value.slice(0, max - 1)}...`;
+}
 
 // Note: react-pdf only supports a subset of CSS
 const styles = StyleSheet.create({
@@ -228,6 +235,78 @@ const styles = StyleSheet.create({
     fontWeight: "medium",
   },
 
+  // Executive summary
+  execSummaryBox: {
+    backgroundColor: "#F9FAFB",
+    borderLeftWidth: 3,
+    borderLeftColor: "#0a57f2",
+    padding: 12,
+    marginBottom: 20,
+  },
+  execSummaryLabel: {
+    fontSize: 8,
+    color: "#0a57f2",
+    textTransform: "uppercase",
+    fontWeight: "bold",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  execSummaryBullet: {
+    fontSize: 10,
+    color: "#111827",
+    lineHeight: 1.4,
+    marginBottom: 4,
+  },
+
+  // Brand snapshot
+  snapshotGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 8,
+  },
+  snapshotCell: {
+    width: "48%",
+    marginBottom: 6,
+  },
+  snapshotLabel: {
+    fontSize: 7,
+    color: "#9CA3AF",
+    textTransform: "uppercase",
+    marginBottom: 1,
+  },
+  snapshotValue: {
+    fontSize: 9,
+    color: "#111827",
+  },
+
+  // Edit audit
+  editRow: {
+    flexDirection: "row",
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  editColIndex: {
+    width: 30,
+    fontSize: 8,
+    color: "#9CA3AF",
+    fontWeight: "bold",
+  },
+  editColBody: {
+    flex: 1,
+  },
+  editMeta: {
+    fontSize: 7,
+    color: "#9CA3AF",
+    marginBottom: 2,
+  },
+  editDiff: {
+    fontSize: 8,
+    color: "#4B5563",
+    lineHeight: 1.3,
+  },
+
   // Footer
   footer: {
     position: "absolute",
@@ -292,12 +371,19 @@ interface QualityReportProps {
   paragraphs: CleanupParagraph[];
   analysedAt: string;
   cleanedAt: string;
+  // Provenance upgrades
+  executiveSummary: ExecutiveSummary | null;
+  brandSnapshot: BrandProfileSnapshot | null;
+  userEdits: UserEdit[];
+  contentHash: string;
+  ownerName: string | null;
 }
 
 export function QualityReportTemplate(props: QualityReportProps) {
-  const { 
-    documentTitle, scores, provenance, exportedAt, 
-    headlineFinding, issues, paragraphs, analysedAt, cleanedAt 
+  const {
+    documentTitle, scores, provenance, exportedAt,
+    headlineFinding, issues, paragraphs, analysedAt, cleanedAt,
+    executiveSummary, brandSnapshot, userEdits, contentHash, ownerName
   } = props;
 
   // Group issues by priority
@@ -373,6 +459,18 @@ export function QualityReportTemplate(props: QualityReportProps) {
           </View>
         </View>
 
+        {/* Executive Summary */}
+        {executiveSummary && executiveSummary.bullets.length > 0 && (
+          <View style={styles.execSummaryBox}>
+            <Text style={styles.execSummaryLabel}>Executive Summary</Text>
+            {executiveSummary.bullets.map((bullet, i) => (
+              <Text key={i} style={styles.execSummaryBullet}>
+                {"\u2022 "}{bullet}
+              </Text>
+            ))}
+          </View>
+        )}
+
         {/* Score Table */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quality Score Summary</Text>
@@ -445,9 +543,55 @@ export function QualityReportTemplate(props: QualityReportProps) {
           </View>
         )}
 
+        {/* Brand Profile Snapshot — frozen at the time of cleanup */}
+        {brandSnapshot && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Brand Profile Snapshot</Text>
+            <Text style={{ fontSize: 8, color: "#9CA3AF", marginBottom: 8 }}>
+              Captured {format(new Date(brandSnapshot.captured_at), "yyyy-MM-dd HH:mm")} — later changes to the profile do not alter this audit.
+            </Text>
+            <View style={styles.snapshotGrid}>
+              <View style={styles.snapshotCell}>
+                <Text style={styles.snapshotLabel}>Profile name</Text>
+                <Text style={styles.snapshotValue}>{brandSnapshot.name}</Text>
+              </View>
+              <View style={styles.snapshotCell}>
+                <Text style={styles.snapshotLabel}>Language</Text>
+                <Text style={styles.snapshotValue}>{brandSnapshot.language_variant}</Text>
+              </View>
+              <View style={styles.snapshotCell}>
+                <Text style={styles.snapshotLabel}>Tone</Text>
+                <Text style={styles.snapshotValue}>{brandSnapshot.tone}</Text>
+              </View>
+              <View style={styles.snapshotCell}>
+                <Text style={styles.snapshotLabel}>Writing examples</Text>
+                <Text style={styles.snapshotValue}>{brandSnapshot.writing_examples.length} supplied</Text>
+              </View>
+              {brandSnapshot.banned_phrases.length > 0 && (
+                <View style={styles.snapshotCell}>
+                  <Text style={styles.snapshotLabel}>Banned phrases</Text>
+                  <Text style={styles.snapshotValue}>{brandSnapshot.banned_phrases.slice(0, 6).join(", ")}{brandSnapshot.banned_phrases.length > 6 ? ", ..." : ""}</Text>
+                </View>
+              )}
+              {brandSnapshot.approved_phrases.length > 0 && (
+                <View style={styles.snapshotCell}>
+                  <Text style={styles.snapshotLabel}>Approved phrases</Text>
+                  <Text style={styles.snapshotValue}>{brandSnapshot.approved_phrases.slice(0, 6).join(", ")}{brandSnapshot.approved_phrases.length > 6 ? ", ..." : ""}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Audit Log */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Processing Audit Log</Text>
+          {ownerName && (
+            <View style={styles.auditRow}>
+              <Text style={styles.auditText}>Document owner</Text>
+              <Text style={styles.auditValue}>{ownerName}</Text>
+            </View>
+          )}
           <View style={styles.auditRow}>
             <Text style={styles.auditText}>Pause cards answered</Text>
             <Text style={styles.auditValue}>{provenance.pauseCardsAnswered} of {provenance.pauseCardsTotal}</Text>
@@ -462,10 +606,34 @@ export function QualityReportTemplate(props: QualityReportProps) {
             <Text style={styles.auditText}>Manual paragraph edits</Text>
             <Text style={styles.auditValue}>{provenance.manualEdits > 0 ? `${provenance.manualEdits} paragraph(s) directly edited` : "None"}</Text>
           </View>
+
+          {userEdits.length > 0 && (
+            <View style={{ marginTop: 8 }}>
+              <Text style={{ fontSize: 8, color: "#9CA3AF", textTransform: "uppercase", fontWeight: "bold", marginBottom: 6 }}>
+                Manual edit trail
+              </Text>
+              {userEdits.map((edit, i) => (
+                <View key={i} style={styles.editRow} wrap={false}>
+                  <Text style={styles.editColIndex}>¶{edit.paragraph_index + 1}</Text>
+                  <View style={styles.editColBody}>
+                    <Text style={styles.editMeta}>
+                      {format(new Date(edit.edited_at), "yyyy-MM-dd HH:mm")}
+                      {ownerName ? ` · ${ownerName}` : ""}
+                    </Text>
+                    <Text style={styles.editDiff}>
+                      <Text style={styles.oldText}>&quot;{truncate(edit.original_cleaned, 120)}&quot;</Text>
+                      <Text> → </Text>
+                      <Text style={styles.newText}>&quot;{truncate(edit.user_version, 120)}&quot;</Text>
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Footer */}
-        <View style={styles.footer}>
+        <View style={styles.footer} fixed>
           <View style={styles.footerGrid}>
             <View>
               <Text style={styles.footerInfo}>Doc ID: {props.documentId}</Text>
@@ -477,6 +645,11 @@ export function QualityReportTemplate(props: QualityReportProps) {
               <Text style={styles.footerInfo}>Exported: {format(new Date(exportedAt), "yyyy-MM-dd HH:mm")}</Text>
             </View>
           </View>
+          {contentHash && (
+            <Text style={styles.footerInfo}>
+              Content integrity (SHA-256): {contentHash}
+            </Text>
+          )}
           <Text style={styles.branding}>Generated by Candour HQ · candourhq.com</Text>
         </View>
 

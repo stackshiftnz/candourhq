@@ -5,6 +5,8 @@ import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { DiagnosisResponse, DiagnosisIssue, LanguageVariant, ContentType } from "@/lib/anthropic/types";
 import { getDiagnoseSystemPrompt } from "@/lib/anthropic/prompts/diagnose";
 import { calculateSignalScore, calculateAverageScore } from "@/lib/utils/scoring";
+import { diagnosisTool, DIAGNOSIS_TOOL_NAME } from "@/lib/anthropic/tool-schemas";
+import { recordApiEvent } from "@/lib/telemetry/record";
 import type { TextBlockParam } from "@anthropic-ai/sdk/resources/messages";
 
 export const maxDuration = 60;
@@ -95,45 +97,41 @@ export async function POST(req: Request) {
       text: systemPrompt,
       cache_control: { type: "ephemeral" },
     };
+    const anthropicStart = Date.now();
     const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
       max_tokens: 4000,
       system: [systemBlock],
+      tools: [diagnosisTool],
+      tool_choice: { type: "tool", name: DIAGNOSIS_TOOL_NAME },
       messages: [
         { role: "user", content: document.original_content }
       ],
     });
-    if (message.usage) {
-      console.log("[CHQ-ANALYSE] token usage:", {
-        input: message.usage.input_tokens,
-        output: message.usage.output_tokens,
-        cache_read: (message.usage as unknown as Record<string, number>).cache_read_input_tokens ?? 0,
-        cache_write: (message.usage as unknown as Record<string, number>).cache_creation_input_tokens ?? 0,
-      });
-    }
+    const latencyMs = Date.now() - anthropicStart;
+    await recordApiEvent({
+      userId: session.user.id,
+      documentId,
+      eventType: "analyse",
+      eventCategory: "ai",
+      model: "claude-sonnet-4-6",
+      latencyMs,
+      wordCount: document.word_count,
+      usage: message.usage,
+    });
 
-    const responseContent = message.content[0];
-    if (responseContent.type !== "text") {
-      throw new Error("Unexpected response type from Anthropic");
-    }
-
-    // 5. Strip markdown fences and parse JSON
-    let textBody = responseContent.text;
-    if (textBody.includes("```")) {
-      textBody = textBody.replace(/```json\n?/, "").replace(/```\n?/, "");
-    }
-    
-    let diagnosis: DiagnosisResponse;
-    try {
-      diagnosis = JSON.parse(textBody.trim());
-    } catch (e) {
-      console.error("Failed to parse diagnosis JSON. Raw output:", textBody, e);
+    // Tool use guarantees shape — just locate the tool_use block and treat its
+    // input as the diagnosis. No JSON fence stripping, no parse try/catch.
+    const toolUseBlock = message.content.find(b => b.type === "tool_use" && b.name === DIAGNOSIS_TOOL_NAME);
+    if (!toolUseBlock || toolUseBlock.type !== "tool_use") {
+      console.error("Diagnosis tool_use block missing. Raw content:", message.content);
       await supabase.from("documents").update({ status: "pending" }).eq("id", documentId);
       return NextResponse.json(
         { error: "Analysis result was corrupted. Please try again." },
         { status: 500 }
       );
     }
+    const diagnosis = toolUseBlock.input as DiagnosisResponse;
 
     // 6. Calculate average_score_original using dimensions as ground truth
     diagnosis.signals.substance.score = calculateSignalScore(diagnosis.signals.substance.dimensions);
@@ -202,7 +200,7 @@ export async function POST(req: Request) {
     console.error("[CHQ-001] Anthropic API error in /api/analyse:", {
       message: errMessage,
       status: errStatus,
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
     });
     if (documentId) {
       const errorSupabase = createClient();

@@ -85,8 +85,10 @@ export function CleanupParagraph({
             onClick={() => setShowOriginal(v => !v)}
             className="md:hidden flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-gray-500 hover:text-gray-900 border border-gray-200 bg-white rounded-md"
             title="Toggle original paragraph"
+            aria-label={showOriginal ? "Hide the original paragraph" : "Show the original paragraph"}
+            aria-expanded={showOriginal}
           >
-            {showOriginal ? <EyeOffIcon size={11} /> : <EyeIcon size={11} />}
+            {showOriginal ? <EyeOffIcon size={11} aria-hidden="true" /> : <EyeIcon size={11} aria-hidden="true" />}
             {showOriginal ? "Hide original" : "Show original"}
           </button>
         )}
@@ -95,18 +97,24 @@ export function CleanupParagraph({
             onClick={() => onRevert(index)}
             className="opacity-0 group-hover:opacity-100 focus:opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-gray-500 hover:text-gray-900 border border-gray-200 bg-white rounded-md transition-opacity"
             title="Revert to Candour's cleaned version"
+            aria-label={`Revert paragraph ${index + 1} to the Candour-cleaned version`}
           >
-            <Undo2Icon size={11} />
+            <Undo2Icon size={11} aria-hidden="true" />
             Revert to AI version
           </button>
         )}
       </div>
-      
+
       <div
         ref={contentRef}
         contentEditable={!isQueued}
         suppressContentEditableWarning
         onBlur={handleInput}
+        role="textbox"
+        aria-multiline="true"
+        aria-readonly={isQueued}
+        aria-label={`Cleaned paragraph ${index + 1}${hasUserEdit ? ", manually edited" : ""}`}
+        tabIndex={isQueued ? -1 : 0}
         className={`text-[15px] leading-relaxed text-gray-900 focus:outline-none focus:bg-gray-50 rounded px-1 -mx-1 transition-colors ${!isQueued ? "cursor-text" : ""}`}
       >
         {localText}
@@ -124,11 +132,16 @@ export function CleanupParagraph({
       )}
 
       {!isQueued && paragraph.changes && paragraph.changes.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5 animate-in fade-in slide-in-from-top-1 duration-500">
+        <div
+          className="mt-2 flex flex-wrap gap-1.5 animate-in fade-in slide-in-from-top-1 duration-500"
+          role="group"
+          aria-label={`${paragraph.changes.length} change${paragraph.changes.length === 1 ? "" : "s"} applied to paragraph ${index + 1}`}
+        >
           {paragraph.changes.map((change, i) => (
             <button
               key={i}
               onClick={() => onTagClick(change)}
+              aria-label={`View explanation for ${change.tag.replace(/_/g, " ")} change`}
               className={`text-[12px] font-bold uppercase tracking-wider px-3 h-11 flex items-center justify-center rounded-full border cursor-pointer hover:brightness-95 transition-all ${tagColours[change.tag] || tagColours.softened}`}
             >
               {change.tag.replace(/_/g, " ")}

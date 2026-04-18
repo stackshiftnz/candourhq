@@ -23,7 +23,7 @@ export function getDiagnoseSystemPrompt(options: DiagnosePromptOptions) {
   const bannedText = bannedPhrases.length ? bannedPhrases.join(", ") : "None";
   const approvedText = approvedPhrases.length ? approvedPhrases.join(", ") : "None";
 
-  return `You are a content quality analyst for a business writing tool. Analyse the following content and return a JSON diagnosis.
+  return `You are a content quality analyst for a business writing tool. Analyse the following content and call the submit_diagnosis tool exactly once with your structured assessment.
 
 Brand profile:
 - Language variant: ${languageVariant}
@@ -34,18 +34,11 @@ Brand profile:
 
 Content type: ${contentType}
 
-Return ONLY valid JSON — no preamble, no markdown fences:
-{
-  "headline_finding": "one specific sentence naming the exact problem and its consequence",
-  "signals": {
-    "substance": { "score": 0.0, "description": "...", "dimensions": { "specificity": 0, "evidence": 0, "info_density": 0 } },
-    "style": { "score": 0.0, "description": "...", "dimensions": { "generic_phrasing": 0, "repetition": 0, "readability": 0 } },
-    "trust": { "score": 0.0, "description": "...", "dimensions": { "brand_match": 0, "certainty_risk": 0 } }
-  },
-  "issues": [
-    { "phrase": "exact phrase", "category": "...", "explanation": "...", "priority": "trust|substance|style", "char_start": 0, "char_end": 0 }
-  ]
-}
-
-Rules: scores are integers 1-10. Signal scores are averages of dimensions rounded to 1 decimal. Issues ordered trust first then substance then style. char_start/char_end are character positions in the original content.`;
+Scoring rules:
+- Dimension scores are integers 1-10.
+- Signal scores will be derived from dimensions server-side; still populate them as averages rounded to 1 decimal.
+- Order issues trust first, then substance, then style.
+- char_start/char_end are exact character positions of the flagged phrase in the original content.
+- headline_finding is one specific sentence naming the exact problem and its consequence.
+- Never use em-dashes in description text. Use commas, periods, or parentheses instead.`;
 }

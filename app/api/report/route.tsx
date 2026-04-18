@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { 
-  Document as DocxDocument, 
-  Packer, 
-  Paragraph, 
-  TextRun, 
+import { createHash } from "crypto";
+import {
+  Document as DocxDocument,
+  Packer,
+  Paragraph,
+  TextRun,
   HeadingLevel,
   AlignmentType
 } from "docx";
@@ -12,12 +13,82 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import { QualityReportTemplate } from "@/components/export/QualityReportTemplate";
 import { CleanupParagraph } from "@/lib/anthropic/types";
-import { 
-  Document as PdfDocument, 
-  Page, 
-  Text, 
-  StyleSheet 
+import type { BrandProfileSnapshot, ExecutiveSummary, UserEdit } from "@/types/database";
+import { anthropic } from "@/lib/anthropic/client";
+import {
+  EXECUTIVE_SUMMARY_SYSTEM_PROMPT,
+  buildExecutiveSummaryUserPrompt,
+} from "@/lib/anthropic/prompts/executive-summary";
+import {
+  Document as PdfDocument,
+  Page,
+  Text,
+  StyleSheet
 } from "@react-pdf/renderer";
+
+const EXECUTIVE_SUMMARY_MODEL = "claude-sonnet-4-6";
+
+async function generateExecutiveSummary(args: {
+  documentTitle: string;
+  contentType: string;
+  wordCount: number;
+  brandProfileName: string;
+  diagnosis: { substance_score: number | null; style_score: number | null; trust_score: number | null; average_score_original: number | null; substance_score_final: number | null; style_score_final: number | null; trust_score_final: number | null; average_score_final: number | null };
+  issuesFound: number;
+  issuesResolved: number;
+  pauseCardsTotal: number;
+  pauseCardsAnswered: number;
+  manualEdits: number;
+}): Promise<ExecutiveSummary | null> {
+  try {
+    const userPrompt = buildExecutiveSummaryUserPrompt({
+      documentTitle: args.documentTitle,
+      contentType: args.contentType,
+      wordCount: args.wordCount,
+      brandProfileName: args.brandProfileName,
+      scoresBefore: {
+        substance: args.diagnosis.substance_score || 0,
+        style: args.diagnosis.style_score || 0,
+        trust: args.diagnosis.trust_score || 0,
+        average: args.diagnosis.average_score_original || 0,
+      },
+      scoresAfter: {
+        substance: args.diagnosis.substance_score_final || args.diagnosis.substance_score || 0,
+        style: args.diagnosis.style_score_final || args.diagnosis.style_score || 0,
+        trust: args.diagnosis.trust_score_final || args.diagnosis.trust_score || 0,
+        average: args.diagnosis.average_score_final || args.diagnosis.average_score_original || 0,
+      },
+      issuesFound: args.issuesFound,
+      issuesResolved: args.issuesResolved,
+      pauseCardsTotal: args.pauseCardsTotal,
+      pauseCardsAnswered: args.pauseCardsAnswered,
+      manualEdits: args.manualEdits,
+    });
+
+    const message = await anthropic.messages.create({
+      model: EXECUTIVE_SUMMARY_MODEL,
+      max_tokens: 400,
+      system: EXECUTIVE_SUMMARY_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userPrompt }],
+    });
+
+    const textBlock = message.content.find((b) => b.type === "text");
+    if (!textBlock || textBlock.type !== "text") return null;
+
+    const raw = textBlock.text.trim().replace(/^```json\s*|\s*```$/g, "");
+    const parsed = JSON.parse(raw) as { bullets: string[] };
+    if (!Array.isArray(parsed.bullets) || parsed.bullets.length === 0) return null;
+
+    return {
+      bullets: parsed.bullets.slice(0, 3).map((b) => String(b).trim()),
+      model: EXECUTIVE_SUMMARY_MODEL,
+      generated_at: new Date().toISOString(),
+    };
+  } catch (err) {
+    console.error("[REPORT] executive summary generation failed:", err);
+    return null;
+  }
+}
 
 function sanitiseFilename(title: string): string {
   return title
@@ -192,25 +263,87 @@ export async function GET(req: NextRequest) {
           }
         };
 
+        const userEdits: UserEdit[] = (cleanup.user_edits as UserEdit[]) || [];
         const provenance = {
           issuesFound: cleanup.issues_total || 0,
           issuesResolved: cleanup.issues_resolved || 0,
           pauseCardsTotal: cleanup.pause_cards_total || 0,
           pauseCardsAnswered: cleanup.pause_cards_answered || 0,
-          manualEdits: cleanup.user_edits?.length || 0,
+          manualEdits: userEdits.length,
         };
 
+        // Content hash — SHA-256 over the final content gives reviewers an
+        // integrity signature they can compare later if the document is re-exported.
+        const contentHash = cleanup.content_hash
+          || createHash("sha256").update(cleanup.final_content || "").digest("hex");
+
+        // Persist the hash the first time it's computed so subsequent exports
+        // return the same value without recomputation.
+        if (!cleanup.content_hash && cleanup.final_content) {
+          await supabase
+            .from("cleanups")
+            .update({ content_hash: contentHash })
+            .eq("id", cleanup.id);
+        }
+
+        // Executive summary — cached on the cleanup row. First export pays the
+        // Anthropic cost; subsequent exports reuse the cached bullets.
+        let executiveSummary = cleanup.executive_summary as ExecutiveSummary | null;
+        if (!executiveSummary) {
+          executiveSummary = await generateExecutiveSummary({
+            documentTitle: document.title || "Untitled Document",
+            contentType: document.content_type || "Document",
+            wordCount: document.word_count || 0,
+            brandProfileName: document.brand_profiles?.name || "Standard Profile",
+            diagnosis: {
+              substance_score: diagnosis.substance_score,
+              style_score: diagnosis.style_score,
+              trust_score: diagnosis.trust_score,
+              average_score_original: diagnosis.average_score_original,
+              substance_score_final: diagnosis.substance_score_final,
+              style_score_final: diagnosis.style_score_final,
+              trust_score_final: diagnosis.trust_score_final,
+              average_score_final: diagnosis.average_score_final,
+            },
+            issuesFound: provenance.issuesFound,
+            issuesResolved: provenance.issuesResolved,
+            pauseCardsTotal: provenance.pauseCardsTotal,
+            pauseCardsAnswered: provenance.pauseCardsAnswered,
+            manualEdits: provenance.manualEdits,
+          });
+
+          if (executiveSummary) {
+            await supabase
+              .from("cleanups")
+              .update({ executive_summary: executiveSummary })
+              .eq("id", cleanup.id);
+          }
+        }
+
+        const brandSnapshot = cleanup.brand_profile_snapshot as BrandProfileSnapshot | null;
+
+        // Resolve the document owner's display name for the audit section. Falls
+        // back silently if the profile row can't be read.
+        let ownerName: string | null = null;
+        if (document.user_id) {
+          const { data: ownerProfile } = await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", document.user_id)
+            .maybeSingle();
+          ownerName = ownerProfile?.full_name || ownerProfile?.email || null;
+        }
+
         const buffer = await renderToBuffer(
-          <QualityReportTemplate 
+          <QualityReportTemplate
             documentTitle={document.title || "Untitled Document"}
             contentType={document.content_type || "Document"}
             wordCount={document.word_count || 0}
-            language={document.brand_profiles?.language_variant || document.language_variant || "en-US"}
-            brandProfile={document.brand_profiles?.name || "Standard Profile"}
+            language={brandSnapshot?.language_variant || document.brand_profiles?.language_variant || document.language_variant || "en-US"}
+            brandProfile={brandSnapshot?.name || document.brand_profiles?.name || "Standard Profile"}
             scores={scores}
             provenance={provenance}
             exportedAt={document.updated_at || document.created_at || new Date().toISOString()}
-            // New detailed info
             documentId={document.id}
             diagnosisId={diagnosis.id}
             cleanupId={cleanup.id}
@@ -220,6 +353,11 @@ export async function GET(req: NextRequest) {
             paragraphs={cleanup.paragraphs as CleanupParagraph[]}
             analysedAt={diagnosis.created_at || document.created_at}
             cleanedAt={cleanup.created_at || document.updated_at || document.created_at}
+            executiveSummary={executiveSummary}
+            brandSnapshot={brandSnapshot}
+            userEdits={userEdits}
+            contentHash={contentHash}
+            ownerName={ownerName}
           />
         );
 

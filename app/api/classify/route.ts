@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { anthropic } from "@/lib/anthropic/client";
 import { createClient } from "@/lib/supabase/server";
+import { recordApiEvent } from "@/lib/telemetry/record";
 
 const VALID_CONTENT_TYPES = [
   "blog_post",
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
     const first300Words = text.trim().split(/\s+/).slice(0, 300).join(" ");
 
     try {
+      const anthropicStart = Date.now();
       const response = await anthropic.messages.create({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 20,
@@ -51,6 +53,15 @@ export async function POST(req: Request) {
         messages: [
           { role: "user", content: `Text to classify:\n\n${first300Words}` }
         ],
+      });
+      await recordApiEvent({
+        userId: session.user.id,
+        documentId: null,
+        eventType: "classify",
+        eventCategory: "ai",
+        model: "claude-haiku-4-5-20251001",
+        latencyMs: Date.now() - anthropicStart,
+        usage: response.usage,
       });
 
       const responseContent = response.content[0];

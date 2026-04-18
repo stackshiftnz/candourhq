@@ -22,6 +22,7 @@ import { ScoreBreakdownCard } from "./ScoreBreakdownCard";
 import { Database } from "@/types/database";
 import { useAsyncAction } from "@/lib/hooks/useAsyncAction";
 import { useToast } from "@/lib/hooks/useToast";
+import { trackEvent } from "@/lib/telemetry/client";
 
 
 type Document = Database["public"]["Tables"]["documents"]["Row"];
@@ -110,6 +111,10 @@ export default function ExportContent({
     }
   }, [diagnosis.average_score_final, runRescore]);
 
+  useEffect(() => {
+    trackEvent("screen_view", doc.id, { screen: "export" });
+  }, [doc.id]);
+
   const handleCopy = async () => {
     if (!cleanup.final_content) return;
     try {
@@ -141,6 +146,7 @@ export default function ExportContent({
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      trackEvent("export_downloaded", doc.id, { format: type });
     } catch (err) {
       console.error("Download error:", err);
       toast("Download failed. Please try again.", "error");

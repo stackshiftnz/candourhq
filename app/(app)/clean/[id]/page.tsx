@@ -16,9 +16,13 @@ import { ExplanationDrawer } from "@/components/cleanup/ExplanationDrawer";
 import { HighlightText } from "@/components/analyse/HighlightText";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
-import { ArrowRightIcon, HistoryIcon, UserIcon, CheckCircle2Icon, InfoIcon } from "lucide-react";
+import { ArrowRightIcon, HistoryIcon, UserIcon, CheckCircle2Icon, InfoIcon, ClockIcon } from "lucide-react";
 import { submitForApproval } from "@/app/actions/team";
 import { useToast } from "@/lib/hooks/useToast";
+import { trackEvent } from "@/lib/telemetry/client";
+import { writeRevision } from "@/lib/cleanup/revisions";
+import { RevisionHistoryDrawer } from "@/components/cleanup/RevisionHistoryDrawer";
+import { DiffView } from "@/components/cleanup/DiffView";
 
 type Document = Database["public"]["Tables"]["documents"]["Row"];
 type Diagnosis = Database["public"]["Tables"]["diagnoses"]["Row"];
@@ -37,6 +41,11 @@ export default function CleanupPage() {
   const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
   const [cleanupTimedOut, setCleanupTimedOut] = useState(false);
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [viewMode, setViewMode] = useState<"changes" | "diff">("changes");
+  const [streamingParagraphs, setStreamingParagraphs] = useState<ParagraphType[]>([]);
+  const [streamRunning, setStreamRunning] = useState(false);
+  const streamStartedRef = useRef(false);
   const [pollingElapsed, setPollingElapsed] = useState(0);
   const cleanupPollingStart = useRef(Date.now());
 
@@ -67,6 +76,11 @@ export default function CleanupPage() {
       if (cleanData) {
         setCleanup(cleanData);
         setLoading(false);
+        trackEvent("screen_view", id, {
+          screen: "clean",
+          issues_total: cleanData.issues_total ?? 0,
+          issues_resolved: cleanData.issues_resolved ?? 0,
+        });
       } else if (docData?.status === "cleaning") {
         setPolling(true);
       } else {
@@ -119,49 +133,143 @@ export default function CleanupPage() {
     fetchData();
   }, [fetchData]);
 
-  // Polling logic
+  // Elapsed counter keeps the waiting UI live even though the stream, not a
+  // poller, is what actually produces paragraphs. Using a separate effect so
+  // the stream kickoff stays single-shot and not bound to re-renders.
   useEffect(() => {
     if (!polling) return;
-
     cleanupPollingStart.current = Date.now();
     setPollingElapsed(0);
-
-    const interval = setInterval(async () => {
+    const interval = setInterval(() => {
       const elapsed = Date.now() - cleanupPollingStart.current;
       setPollingElapsed(elapsed);
-
       if (elapsed > cleanupTimeoutMs) {
         clearInterval(interval);
-        setPolling(false);
-        setLoading(false);
-        setCleanupTimedOut(true);
-
-        toast("Clean-up failed. Please try again from the diagnosis screen.", "error");
-
-        // Revert status to diagnosed
-        await supabase
-          .from("documents")
-          .update({ status: "diagnosed" })
-          .eq("id", id);
-        return;
       }
-
-      const { data: cleanData } = await supabase
-        .from("cleanups")
-        .select("*")
-        .eq("document_id", id)
-        .single();
-
-      if (cleanData) {
-        setCleanup(cleanData);
-        setPolling(false);
-        setLoading(false);
-        clearInterval(interval);
-      }
-    }, 2000);
-
+    }, 500);
     return () => clearInterval(interval);
-  }, [polling, id, supabase, cleanupTimeoutMs, toast]);
+  }, [polling, cleanupTimeoutMs]);
+
+  // Streaming clean-up: POSTs to /api/clean and reads Server-Sent Events.
+  // Each "paragraph" event appends to streamingParagraphs so the Cleaned
+  // column fills in live. On "complete" we fetch the final row and hand off
+  // to the regular edit flow. On "error" we surface a retry affordance.
+  useEffect(() => {
+    if (!polling) return;
+    if (streamStartedRef.current) return;
+    streamStartedRef.current = true;
+
+    const controller = new AbortController();
+    let cancelled = false;
+
+    (async () => {
+      setStreamRunning(true);
+      setStreamingParagraphs([]);
+      try {
+        const res = await fetch("/api/clean", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ documentId: id }),
+          signal: controller.signal,
+        });
+
+        if (!res.ok || !res.body) {
+          throw new Error(`Clean stream failed: ${res.status}`);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (!cancelled) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          // Parse complete SSE frames (separated by blank lines).
+          let frameEnd: number;
+          while ((frameEnd = buffer.indexOf("\n\n")) !== -1) {
+            const frame = buffer.slice(0, frameEnd);
+            buffer = buffer.slice(frameEnd + 2);
+
+            let eventName = "message";
+            let dataLine = "";
+            for (const line of frame.split("\n")) {
+              if (line.startsWith("event:")) eventName = line.slice(6).trim();
+              else if (line.startsWith("data:")) dataLine += line.slice(5).trim();
+            }
+            if (!dataLine) continue;
+
+            try {
+              const payload = JSON.parse(dataLine);
+              if (eventName === "paragraph" && payload.paragraph) {
+                const incoming = payload.paragraph as ParagraphType;
+                setStreamingParagraphs((prev) => {
+                  const next = prev.slice();
+                  next[payload.index] = incoming;
+                  return next;
+                });
+              } else if (eventName === "complete") {
+                const { data: cleanData } = await supabase
+                  .from("cleanups")
+                  .select("*")
+                  .eq("document_id", id)
+                  .order("created_at", { ascending: false })
+                  .limit(1)
+                  .single();
+                if (cleanData) setCleanup(cleanData);
+                setPolling(false);
+                setLoading(false);
+                setStreamRunning(false);
+                return;
+              } else if (eventName === "error") {
+                throw new Error(payload.error || "Clean-up failed.");
+              }
+            } catch (parseErr) {
+              console.error("[clean-stream] parse error", parseErr, dataLine);
+            }
+          }
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error("[clean-stream] aborted", err);
+        setPolling(false);
+        setLoading(false);
+        setStreamRunning(false);
+        setCleanupTimedOut(true);
+        toast("Clean-up failed. Please try again from the diagnosis screen.", "error");
+        await supabase.from("documents").update({ status: "diagnosed" }).eq("id", id);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [polling, id, supabase, toast]);
+
+  // Seed an ai_initial revision the first time we have a cleanup record with no
+  // prior history — that snapshot is the unedited AI output reviewers can return to.
+  const aiInitialSeededRef = useRef(false);
+  useEffect(() => {
+    if (!cleanup || aiInitialSeededRef.current) return;
+    aiInitialSeededRef.current = true;
+    (async () => {
+      const { count } = await supabase
+        .from("cleanup_revisions")
+        .select("id", { head: true, count: "exact" })
+        .eq("cleanup_id", cleanup.id);
+      if ((count ?? 0) === 0) {
+        await writeRevision({
+          cleanupId: cleanup.id,
+          documentId: String(id),
+          eventType: "ai_initial",
+          paragraphs: cleanup.paragraphs,
+          userEdits: cleanup.user_edits || [],
+        });
+      }
+    })();
+  }, [cleanup, id, supabase]);
 
   // Derived state: first unresolved pause index
   const firstUnresolvedPauseIndex = useMemo(() => {
@@ -294,6 +402,17 @@ export default function CleanupPage() {
       paragraphs: updatedParagraphs,
       user_edits: newUserEdits
     }).eq("document_id", id);
+
+    void writeRevision({
+      cleanupId: cleanup.id,
+      documentId: String(id),
+      eventType: "user_edit",
+      paragraphs: updatedParagraphs,
+      userEdits: newUserEdits,
+      metadata: { paragraph_index: index },
+    });
+
+    trackEvent("change_accepted", id, { paragraph_index: index, kind: "user_edit" });
   };
 
   const handleRevert = async (index: number) => {
@@ -321,6 +440,39 @@ export default function CleanupPage() {
       paragraphs: updatedParagraphs,
       user_edits: newUserEdits
     }).eq("document_id", id);
+
+    void writeRevision({
+      cleanupId: cleanup.id,
+      documentId: String(id),
+      eventType: "revert",
+      paragraphs: updatedParagraphs,
+      userEdits: newUserEdits,
+      metadata: { paragraph_index: index },
+    });
+
+    trackEvent("change_reverted", id, { paragraph_index: index });
+  };
+
+  const handleRestoreRevision = async (paragraphs: ParagraphType[], userEdits: UserEdit[]) => {
+    if (!cleanup) return;
+    setCleanup({ ...cleanup, paragraphs, user_edits: userEdits });
+
+    await supabase.from("cleanups").update({
+      paragraphs,
+      user_edits: userEdits,
+    }).eq("document_id", id);
+
+    // Record the restore itself as a revision so the audit trail shows it.
+    void writeRevision({
+      cleanupId: cleanup.id,
+      documentId: String(id),
+      eventType: "revert",
+      paragraphs,
+      userEdits,
+      metadata: { source: "history_drawer" },
+    });
+
+    toast("Restored earlier version.", "success");
   };
 
   const handleResolvePause = async (index: number, answer: string | null, skipped: boolean) => {
@@ -394,7 +546,21 @@ export default function CleanupPage() {
       pause_cards_answered: newAnsweredCount
     }).eq("document_id", id);
 
+    void writeRevision({
+      cleanupId: cleanup.id,
+      documentId: String(id),
+      eventType: hasAnswer ? "pause_resolved" : "pause_skipped",
+      paragraphs: updatedParagraphs,
+      userEdits: cleanup.user_edits || [],
+      metadata: { paragraph_index: index, answer: hasAnswer ? answer : null },
+    });
+
+    trackEvent(hasAnswer ? "pause_card_answered" : "pause_card_skipped", id, {
+      paragraph_index: index,
+    });
+
     if (isActuallyComplete) {
+      trackEvent("cleanup_completed", id, { issues_total: diagnosis.issues.length });
       await finalizeCleanup(updatedParagraphs);
     }
   };
@@ -412,6 +578,15 @@ export default function CleanupPage() {
     await supabase.from("cleanups").update({
       issues_resolved: totalIssues
     }).eq("document_id", id);
+
+    void writeRevision({
+      cleanupId: cleanup.id,
+      documentId: String(id),
+      eventType: "accept_remaining",
+      paragraphs: cleanup.paragraphs,
+      userEdits: cleanup.user_edits || [],
+      metadata: { issues_total: totalIssues },
+    });
 
     await finalizeCleanup(cleanup.paragraphs);
   };
@@ -528,6 +703,52 @@ export default function CleanupPage() {
             ? "Weaving in evidence prompts..."
             : "Finalising clean-up — longer docs take a little more time...";
 
+    // Live preview while the stream delivers paragraphs. Drops the spinner UI
+    // as soon as the first paragraph arrives so users see progress, not a void.
+    if (streamRunning && streamingParagraphs.length > 0 && doc) {
+      return (
+        <div className="flex flex-col h-screen bg-white">
+          <div className="h-[56px] border-b border-gray-100 flex items-center justify-between px-6 shrink-0 bg-white">
+            <div>
+              <h1 className="text-[14px] font-bold text-gray-900 leading-tight">
+                {doc.title || "Untitled Document"}
+              </h1>
+              <p className="text-[12px] text-gray-400 font-medium">
+                Generating clean-up · {streamingParagraphs.filter(Boolean).length} paragraph{streamingParagraphs.filter(Boolean).length === 1 ? "" : "s"} ready
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-[12px] text-gray-400">
+              <Spinner size="sm" />
+              <span>{elapsedSeconds}s</span>
+            </div>
+          </div>
+          <div className="h-[3px] w-full bg-gray-50 shrink-0">
+            <div className="h-full bg-teal-500 transition-all duration-500" style={{ width: `${pctComplete}%` }} />
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6">
+            <article className="max-w-3xl mx-auto prose prose-sm font-serif text-[15px] leading-[1.75] text-gray-900">
+              {streamingParagraphs.map((p, i) => {
+                if (!p) return (
+                  <p key={i} className="mb-4 h-5 w-3/4 bg-gray-100 rounded animate-pulse" />
+                );
+                const text = p.type === "clean" ? (p.cleaned || p.original) : p.original;
+                return (
+                  <p key={i} className="mb-4 animate-in fade-in duration-500">
+                    {p.type === "pause" && (
+                      <span className="block mb-1 text-[10px] uppercase tracking-wider font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-0.5 w-fit">
+                        Pause card
+                      </span>
+                    )}
+                    {text}
+                  </p>
+                );
+              })}
+            </article>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-white px-6">
         <Spinner size="lg" className="text-gray-900 mb-4" />
@@ -573,6 +794,40 @@ export default function CleanupPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <div
+            className="hidden md:inline-flex items-center border border-gray-200 rounded-md overflow-hidden text-[12px] font-semibold"
+            role="tablist"
+            aria-label="View mode"
+          >
+            <button
+              role="tab"
+              aria-selected={viewMode === "changes"}
+              onClick={() => setViewMode("changes")}
+              className={`px-3 py-1.5 transition-colors focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:outline-none ${
+                viewMode === "changes" ? "bg-gray-900 text-white" : "bg-white text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              Changes
+            </button>
+            <button
+              role="tab"
+              aria-selected={viewMode === "diff"}
+              onClick={() => setViewMode("diff")}
+              className={`px-3 py-1.5 transition-colors border-l border-gray-200 focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:outline-none ${
+                viewMode === "diff" ? "bg-gray-900 text-white" : "bg-white text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              Diff
+            </button>
+          </div>
+          <button
+            onClick={() => setShowHistoryDrawer(true)}
+            className="p-2 -m-2 text-gray-400 hover:text-gray-900 transition-colors rounded-md focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:outline-none"
+            aria-label="View revision history"
+            title="Revision history"
+          >
+            <ClockIcon size={18} />
+          </button>
           <Button variant="secondary" size="sm" onClick={() => router.push(`/analyse/${id}`)}>
             Diagnosis
           </Button>
@@ -622,8 +877,14 @@ export default function CleanupPage() {
       )}
 
       {/* Main Content Areas */}
-      <div className="flex-1 flex overflow-hidden relative pt-[48px] md:pt-0">
-        
+      <div className={`flex-1 flex overflow-hidden relative ${viewMode === "changes" ? "pt-[48px] md:pt-0" : ""}`}>
+
+        {viewMode === "diff" && cleanup && (
+          <DiffView paragraphs={cleanup.paragraphs as ParagraphType[]} />
+        )}
+
+        {viewMode === "changes" && (
+        <>
         {/* Mobile Tabs (Mobile only) */}
         <div className="md:hidden absolute top-0 left-0 right-0 h-[48px] border-b border-gray-100 bg-white flex z-20">
           {(["cleaned", "queue", "original"] as const).map((tab) => (
@@ -747,12 +1008,24 @@ export default function CleanupPage() {
           />
         </div>
 
+        </>
+        )}
+
         {/* Column 4: Drawer (Desktop) */}
-        <ExplanationDrawer 
+        <ExplanationDrawer
           isOpen={!!activeDrawerTag}
           onClose={() => setActiveDrawerTag(null)}
           tag={activeDrawerTag}
         />
+
+        {cleanup && (
+          <RevisionHistoryDrawer
+            cleanupId={cleanup.id}
+            open={showHistoryDrawer}
+            onClose={() => setShowHistoryDrawer(false)}
+            onRestore={handleRestoreRevision}
+          />
+        )}
 
       </div>
 

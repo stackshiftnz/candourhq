@@ -3,7 +3,9 @@ import { anthropic } from "@/lib/anthropic/client";
 import { createClient } from "@/lib/supabase/server";
 import { DiagnosisResponse, LanguageVariant, ContentType } from "@/lib/anthropic/types";
 import { getDiagnoseSystemPrompt } from "@/lib/anthropic/prompts/diagnose";
+import { diagnosisTool, DIAGNOSIS_TOOL_NAME } from "@/lib/anthropic/tool-schemas";
 import { calculateSignalScore, calculateAverageScore } from "@/lib/utils/scoring";
+import { recordApiEvent } from "@/lib/telemetry/record";
 
 export const maxDuration = 60;
 
@@ -78,36 +80,38 @@ export async function POST(req: Request) {
     });
 
     // 4. Send to Anthropic (same as /api/analyse but with cleaned content)
+    const anthropicStart = Date.now();
     const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
       max_tokens: 4000,
       system: systemPrompt,
+      tools: [diagnosisTool],
+      tool_choice: { type: "tool", name: DIAGNOSIS_TOOL_NAME },
       messages: [
         { role: "user", content: cleanup.final_content }
       ],
     });
+    const latencyMs = Date.now() - anthropicStart;
+    await recordApiEvent({
+      userId: session.user.id,
+      documentId,
+      eventType: "rescore",
+      eventCategory: "ai",
+      model: "claude-sonnet-4-6",
+      latencyMs,
+      wordCount: document.word_count,
+      usage: message.usage,
+    });
 
-    const responseContent = message.content[0];
-    if (responseContent.type !== "text") {
-      throw new Error("Unexpected response type from Anthropic");
-    }
-
-    // 5. Build JSON and parse
-    let textBody = responseContent.text;
-    if (textBody.includes("```")) {
-      textBody = textBody.replace(/```json\n?/, "").replace(/```\n?/, "");
-    }
-
-    let diagnosis: DiagnosisResponse;
-    try {
-      diagnosis = JSON.parse(textBody.trim());
-    } catch (e) {
-      console.error("Rescore JSON parse failed:", textBody, e);
+    const toolUseBlock = message.content.find(b => b.type === "tool_use" && b.name === DIAGNOSIS_TOOL_NAME);
+    if (!toolUseBlock || toolUseBlock.type !== "tool_use") {
+      console.error("Rescore tool_use block missing. Raw content:", message.content);
       return NextResponse.json(
         { error: "Score recalculation failed", scores: null },
         { status: 500 }
       );
     }
+    const diagnosis = toolUseBlock.input as DiagnosisResponse;
 
     // 6. Calculate finalized scores
     const substance = calculateSignalScore(diagnosis.signals.substance.dimensions);
@@ -150,7 +154,7 @@ export async function POST(req: Request) {
     console.error("[CHQ-002] Anthropic API error in /api/rescore:", {
       message: errMessage,
       status: errStatus,
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
     });
     return NextResponse.json(
       { error: "Score recalculation failed", scores: null },

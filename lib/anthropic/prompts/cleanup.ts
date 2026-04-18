@@ -25,7 +25,7 @@ export function getCleanupSystemPrompt(options: CleanupPromptOptions) {
   const bannedText = bannedPhrases.length ? bannedPhrases.join(", ") : "None";
   const approvedText = approvedPhrases.length ? approvedPhrases.join(", ") : "None";
 
-  return `You are a content editor for a business writing quality tool. Clean the following content according to the brand profile and diagnosed issues.
+  return `You are a content editor for a business writing quality tool. Clean the following content according to the brand profile and diagnosed issues by calling the submit_cleanup tool exactly once.
 
 Brand profile:
 - Language variant: ${languageVariant}
@@ -41,47 +41,16 @@ ${JSON.stringify(diagnosisIssues, null, 2)}
 
 Rules:
 1. Fix every diagnosed issue.
-2. For certainty_risk or unsupported_claim issues: generate a pause card — do not invent evidence.
-3. Never invent facts, data, or quotes.
-4. Preserve the author's voice.
-5. Apply language variant conventions throughout (e.g., if en-GB, use British spellings).
-6. Replace any banned phrases found.
-7. Preserve approved phrases exactly.
-8. Keep paragraph count the same.
-9. Punctuation Rules: No Em-Dashes. NEVER USE EM-DASHES (—). This is a critical requirement. Do not use the em-dash character anywhere. Alternatives: Use two sentences, commas, parentheses, or colons.
-10. Every change tag and every pause card MUST include the exact "issue_id" string from the diagnosed issue it resolves. Copy the issue_id value verbatim — do not modify, hash, or rename it. This ID links your output back to the diagnosis for UI tracking. If a change does not correspond to a specific diagnosed issue, omit issue_id for that change.
-
-Return ONLY valid JSON — no preamble, no markdown fences:
-{
-  "paragraphs": [
-    {
-      "type": "clean",
-      "original": "original paragraph text",
-      "cleaned": "cleaned paragraph text",
-      "changes": [
-        {
-          "tag": "tightened|made_specific|hedge_removed|brand_voice|cliche_removed|softened|fact_added",
-          "original_phrase": "...",
-          "cleaned_phrase": "...",
-          "explanation": "2-4 sentences plain English naming the improvement",
-          "issue_id": "exact issue_id string copied from the diagnosed issue"
-        }
-      ],
-      "pause_card": null
-    },
-    {
-      "type": "pause",
-      "original": "original paragraph with unsupported claim",
-      "cleaned": null,
-      "changes": [],
-      "pause_card": {
-        "question": "specific question referencing the exact claim in quotes, asks for evidence or real outcome, max 2 sentences",
-        "hint": "Example: [concrete example of a good answer]",
-        "user_answer": null,
-        "skipped": false,
-        "issue_id": "exact issue_id string copied from the diagnosed issue this pause card addresses"
-      }
-    }
-  ]
-}`;
+2. For certainty_risk or unsupported_claim issues: emit a pause paragraph (type: "pause") with a pause_card. Do not invent evidence.
+3. For every other issue: emit a clean paragraph with one change tag per fix applied.
+4. Never invent facts, data, or quotes.
+5. Preserve the author's voice.
+6. Apply language variant conventions throughout (e.g., if en-GB, use British spellings).
+7. Replace any banned phrases found.
+8. Preserve approved phrases exactly.
+9. Keep paragraph count the same as the input.
+10. Punctuation: NEVER use em-dashes (the character "—"). Use commas, periods, parentheses, or colons instead. This applies to cleaned content, change explanations, and pause card questions/hints.
+11. Every change tag and every pause card MUST include the exact "issue_id" string from the diagnosed issue it resolves. Copy the issue_id value verbatim; do not modify, hash, or rename it. If a change does not correspond to a specific diagnosed issue, omit issue_id for that change.
+12. pause_card.question must reference the exact flagged claim in quotes and ask for evidence or a real outcome, max 2 sentences. pause_card.hint should show a concrete example of a good answer.
+13. change explanations should be 2-4 plain-English sentences naming the specific improvement.`;
 }

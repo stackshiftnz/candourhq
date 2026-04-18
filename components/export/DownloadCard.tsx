@@ -24,12 +24,14 @@ export function DownloadCard({
   return (
     <button
       onClick={onClick}
+      aria-label={`${title}. ${description}`}
       className={cn(
         "flex flex-col items-start p-4 bg-white border rounded-xl text-left transition-all hover:shadow-sm active:scale-95 group",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-1",
         primary ? "border-gray-900 border-2" : "border-gray-200"
       )}
     >
-      <div className={cn("p-2 rounded-lg mb-3 shadow-sm", iconBg)}>
+      <div className={cn("p-2 rounded-lg mb-3 shadow-sm", iconBg)} aria-hidden="true">
         <Icon size={20} className={iconColor} />
       </div>
       <h3 className="text-[13px] font-semibold text-gray-900 mb-1 group-hover:text-gray-700">

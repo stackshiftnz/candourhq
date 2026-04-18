@@ -23,9 +23,11 @@ export function SignalBlock({ name, signal, defaultExpanded = false, issueCount,
 
   return (
     <div className="border-b border-gray-100 dark:border-gray-800 last:border-0 py-4">
-      <button 
+      <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full text-left flex items-center justify-between group"
+        aria-expanded={isExpanded}
+        aria-label={`${name} signal, score ${signal.score} out of 10. ${isExpanded ? "Collapse" : "Expand"} dimensions.`}
       >
         <div className="flex flex-col">
           <span className="text-[12px] font-medium text-gray-900 dark:text-white capitalize">

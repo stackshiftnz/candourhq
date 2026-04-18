@@ -26,12 +26,22 @@ export function IssueCard({ issue, onCardClick, isHovered }: IssueCardProps) {
   const issueId = `${issue.priority}-${issue.char_start}-${issue.char_end}`;
 
   return (
-    <div 
+    <div
       id={`card-${issueId}`}
       onClick={() => onCardClick?.(issueId)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onCardClick?.(issueId);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`${issue.priority} issue, ${issue.category.replace(/_/g, " ")}: ${issue.phrase}`}
       className={[
         "border border-gray-100 dark:border-gray-800 rounded-xl p-3 mb-2 cursor-pointer transition-all",
         "hover:bg-gray-50 dark:hover:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-700",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1",
         isHovered ? "ring-2 ring-gray-400 ring-offset-1 bg-gray-50 dark:bg-gray-900 border-gray-200" : ""
       ].join(" ")}
     >
