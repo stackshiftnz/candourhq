@@ -7,6 +7,8 @@ interface SignalBlockProps {
   name: string;
   signal: DiagnosisSignal;
   defaultExpanded?: boolean;
+  issueCount?: number;
+  onViewIssues?: () => void;
 }
 
 export function getScoreColor(score: number) {
@@ -15,7 +17,7 @@ export function getScoreColor(score: number) {
   return { text: "text-[#27500A]", bg: "bg-[#639922]", border: "border-[#639922]" };
 }
 
-export function SignalBlock({ name, signal, defaultExpanded = false }: SignalBlockProps) {
+export function SignalBlock({ name, signal, defaultExpanded = false, issueCount, onViewIssues }: SignalBlockProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const colors = getScoreColor(signal.score);
 
@@ -58,6 +60,15 @@ export function SignalBlock({ name, signal, defaultExpanded = false }: SignalBlo
       <p className="mt-2 text-[12px] text-gray-500 dark:text-gray-400 leading-normal">
         {signal.description}
       </p>
+
+      {typeof issueCount === "number" && issueCount > 0 && onViewIssues && (
+        <button
+          onClick={onViewIssues}
+          className="mt-2 text-[11px] font-medium text-gray-500 hover:text-gray-900 underline underline-offset-2 transition-colors"
+        >
+          View {issueCount} {issueCount === 1 ? "issue" : "issues"} driving this score →
+        </button>
+      )}
 
       {isExpanded && (
         <div className="mt-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">

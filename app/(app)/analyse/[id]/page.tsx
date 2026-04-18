@@ -26,6 +26,7 @@ export default function DiagnosisPage() {
 
   const [doc, setDoc] = useState<Document | null>(null);
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
+  const [brandProfileName, setBrandProfileName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isCleaning, setIsCleaning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export default function DiagnosisPage() {
   const [hoveredIssueId, setHoveredIssueId] = useState<string | null>(null);
   const [takingLong, setTakingLong] = useState(false);
   const [analysisState, setAnalysisState] = useState<"loading" | "error" | "done">("loading");
+  const [mobileSheetIssue, setMobileSheetIssue] = useState<DiagnosisIssue | null>(null);
 
   const pollingStartTime = useRef(Date.now());
   const autoTriggerFired = useRef(false);
@@ -56,6 +58,32 @@ export default function DiagnosisPage() {
     }
 
     setDoc(doc);
+
+    // Resolve brand profile name (document may have an explicit profile or
+    // inherit the user's default).
+    const resolveProfile = async () => {
+      let profileId = doc.brand_profile_id;
+      if (!profileId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data: p } = await supabase
+            .from("profiles")
+            .select("default_brand_profile_id")
+            .eq("id", session.user.id)
+            .single();
+          profileId = p?.default_brand_profile_id || null;
+        }
+      }
+      if (profileId) {
+        const { data: bp } = await supabase
+          .from("brand_profiles")
+          .select("name")
+          .eq("id", profileId)
+          .single();
+        if (bp?.name) setBrandProfileName(bp.name);
+      }
+    };
+    resolveProfile();
 
     // If diagnosed, fetch the diagnosis
     if (doc.status === "diagnosed") {
@@ -213,6 +241,15 @@ export default function DiagnosisPage() {
       card.scrollIntoView({ behavior: "smooth", block: "center" });
     }
     setHoveredIssueId(issueId);
+
+    // Mobile: also surface a bottom sheet with the explanation since hover tooltips
+    // are invisible on touch. isTouchDevice via matchMedia keeps this cheap.
+    if (typeof window !== "undefined" && window.matchMedia?.("(hover: none)").matches && diagnosis) {
+      const issue = (diagnosis.issues as unknown as DiagnosisIssue[]).find(i =>
+        `${i.priority}-${i.char_start}-${i.char_end}` === issueId
+      );
+      if (issue) setMobileSheetIssue(issue);
+    }
   };
 
   const scrollToHighlight = (issueId: string) => {
@@ -340,6 +377,12 @@ export default function DiagnosisPage() {
     return curr[1].score < prev[1].score ? curr : prev;
   });
 
+  const issueCount = data.issues.length;
+  const estimatedMinutes = Math.max(1, Math.ceil((issueCount * 25) / 60));
+  const effortLabel = issueCount === 0
+    ? "No issues flagged"
+    : `${issueCount} ${issueCount === 1 ? "issue" : "issues"} · Est. ${estimatedMinutes} min to clean`;
+
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
       {/* Topbar */}
@@ -354,6 +397,12 @@ export default function DiagnosisPage() {
             <span>{wordCount} words</span>
             <span>·</span>
             <span className="uppercase">{doc.language_variant}</span>
+            {brandProfileName ? (
+              <>
+                <span>·</span>
+                <span className="text-gray-500 font-medium">{brandProfileName}</span>
+              </>
+            ) : null}
           </div>
         </div>
         
@@ -426,14 +475,27 @@ export default function DiagnosisPage() {
 
             {/* Signal Blocks */}
             <div className="space-y-4">
-              {Object.entries(data.signals).map(([name, signal]) => (
-                <SignalBlock 
-                  key={name}
-                  name={name} 
-                  signal={signal} 
-                  defaultExpanded={name === lowestSignal[0]}
-                />
-              ))}
+              {Object.entries(data.signals).map(([name, signal]) => {
+                const count = data.issues.filter(i => i.priority === name).length;
+                return (
+                  <SignalBlock
+                    key={name}
+                    name={name}
+                    signal={signal}
+                    defaultExpanded={name === lowestSignal[0]}
+                    issueCount={count}
+                    onViewIssues={() => {
+                      const firstMatchIdx = data.issues.findIndex(i => i.priority === name);
+                      if (firstMatchIdx < 0) return;
+                      const issue = data.issues[firstMatchIdx];
+                      const issueId = `${issue.priority}-${issue.char_start}-${issue.char_end}`;
+                      setActiveTab("issues");
+                      // Slight delay so mobile tab transition completes before scroll
+                      setTimeout(() => scrollToIssue(issueId), 50);
+                    }}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
@@ -463,9 +525,9 @@ export default function DiagnosisPage() {
                     </h3>
                     <div className="space-y-2">
                       {priorityIssues.map((issue, idx) => (
-                        <IssueCard 
-                          key={idx} 
-                          issue={issue} 
+                        <IssueCard
+                          key={idx}
+                          issue={issue}
                           onCardClick={scrollToHighlight}
                           isHovered={hoveredIssueId === `${issue.priority}-${issue.char_start}-${issue.char_end}`}
                         />
@@ -476,9 +538,69 @@ export default function DiagnosisPage() {
               })}
             </div>
           </div>
+          <div className="hidden lg:flex items-center justify-between px-6 py-3 border-t border-gray-100 bg-white shrink-0">
+            <span className="text-[12px] font-medium text-gray-500">{effortLabel}</span>
+            <Button variant="primary" size="sm" onClick={handleStartCleanup}>
+              Start clean-up
+            </Button>
+          </div>
         </div>
 
       </div>
+
+      {/* Mobile persistent bottom CTA */}
+      <div className="lg:hidden shrink-0 border-t border-gray-100 bg-white px-4 py-3 flex items-center justify-between gap-3">
+        <span className="text-[12px] font-medium text-gray-500 truncate">{effortLabel}</span>
+        <Button variant="primary" size="sm" onClick={handleStartCleanup}>
+          Start clean-up
+        </Button>
+      </div>
+
+      {/* Mobile bottom sheet for highlight taps */}
+      {mobileSheetIssue && (
+        <>
+          <div
+            className="lg:hidden fixed inset-0 bg-black/30 z-40 animate-in fade-in duration-200"
+            onClick={() => setMobileSheetIssue(null)}
+          />
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-xl p-5 animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  mobileSheetIssue.priority === "trust" ? "bg-red-500" :
+                  mobileSheetIssue.priority === "substance" ? "bg-amber-500" : "bg-pink-500"
+                }`} />
+                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                  {mobileSheetIssue.priority} · {mobileSheetIssue.category.replace(/_/g, " ")}
+                </span>
+              </div>
+              <button
+                onClick={() => setMobileSheetIssue(null)}
+                className="text-gray-400 hover:text-gray-900 text-[18px] leading-none p-1"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-[14px] font-semibold text-gray-900 mb-2">
+              &ldquo;{mobileSheetIssue.phrase}&rdquo;
+            </p>
+            <p className="text-[13px] text-gray-600 leading-relaxed mb-4">
+              {mobileSheetIssue.explanation}
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setActiveTab("issues");
+                setMobileSheetIssue(null);
+              }}
+            >
+              See all issues
+            </Button>
+          </div>
+        </>
+      )}
 
       {/* Cleaning Overlay */}
       {isCleaning && (

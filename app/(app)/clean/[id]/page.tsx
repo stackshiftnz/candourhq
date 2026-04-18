@@ -32,12 +32,20 @@ export default function CleanupPage() {
   const [doc, setDoc] = useState<Document | null>(null);
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
   const [cleanup, setCleanup] = useState<CleanupRecord | null>(null);
+  const [brandProfileName, setBrandProfileName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
   const [cleanupTimedOut, setCleanupTimedOut] = useState(false);
+  const [pollingElapsed, setPollingElapsed] = useState(0);
   const cleanupPollingStart = useRef(Date.now());
-  const CLEANUP_POLLING_TIMEOUT_MS = 150_000;
+
+  // Scale timeout by word count: ~45s baseline + ~80ms per word, capped at 5 min.
+  // A 300-word doc gets ~69s; a 2000-word doc gets the full 5-minute ceiling.
+  const cleanupTimeoutMs = useMemo(() => {
+    const words = doc?.word_count || 300;
+    return Math.min(45_000 + words * 80, 300_000);
+  }, [doc?.word_count]);
   const [requireApproval, setRequireApproval] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -63,6 +71,30 @@ export default function CleanupPage() {
         setPolling(true);
       } else {
         setLoading(false);
+      }
+
+      // Resolve brand profile name for topbar display
+      if (docData) {
+        let profileId = docData.brand_profile_id;
+        if (!profileId) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const { data: p } = await supabase
+              .from("profiles")
+              .select("default_brand_profile_id")
+              .eq("id", session.user.id)
+              .single();
+            profileId = p?.default_brand_profile_id || null;
+          }
+        }
+        if (profileId) {
+          const { data: bp } = await supabase
+            .from("brand_profiles")
+            .select("name")
+            .eq("id", profileId)
+            .single();
+          if (bp?.name) setBrandProfileName(bp.name);
+        }
       }
 
       // Check workspace require_approval_before_export setting
@@ -92,16 +124,20 @@ export default function CleanupPage() {
     if (!polling) return;
 
     cleanupPollingStart.current = Date.now();
+    setPollingElapsed(0);
 
     const interval = setInterval(async () => {
-      if (Date.now() - cleanupPollingStart.current > CLEANUP_POLLING_TIMEOUT_MS) {
+      const elapsed = Date.now() - cleanupPollingStart.current;
+      setPollingElapsed(elapsed);
+
+      if (elapsed > cleanupTimeoutMs) {
         clearInterval(interval);
         setPolling(false);
         setLoading(false);
         setCleanupTimedOut(true);
-        
+
         toast("Clean-up failed. Please try again from the diagnosis screen.", "error");
-        
+
         // Revert status to diagnosed
         await supabase
           .from("documents")
@@ -125,7 +161,7 @@ export default function CleanupPage() {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [polling, id, supabase, CLEANUP_POLLING_TIMEOUT_MS, toast]);
+  }, [polling, id, supabase, cleanupTimeoutMs, toast]);
 
   // Derived state: first unresolved pause index
   const firstUnresolvedPauseIndex = useMemo(() => {
@@ -260,6 +296,33 @@ export default function CleanupPage() {
     }).eq("document_id", id);
   };
 
+  const handleRevert = async (index: number) => {
+    if (!cleanup) return;
+    // Find the earliest user_edit for this paragraph — its original_cleaned is the
+    // AI-produced version before the user ever touched it.
+    const edits = cleanup.user_edits || [];
+    const paragraphEdits = edits.filter(e => e.paragraph_index === index);
+    if (paragraphEdits.length === 0) return;
+    const firstEdit = paragraphEdits.reduce((earliest, e) =>
+      new Date(e.edited_at) < new Date(earliest.edited_at) ? e : earliest
+    );
+    const aiVersion = firstEdit.original_cleaned;
+
+    const updatedParagraphs = [...cleanup.paragraphs];
+    updatedParagraphs[index] = { ...updatedParagraphs[index], cleaned: aiVersion };
+
+    // Clear edits for this paragraph (revert drops them from the audit trail —
+    // simpler than nesting reverts; users can re-edit if they want)
+    const newUserEdits = edits.filter(e => e.paragraph_index !== index);
+
+    setCleanup({ ...cleanup, paragraphs: updatedParagraphs, user_edits: newUserEdits });
+
+    await supabase.from("cleanups").update({
+      paragraphs: updatedParagraphs,
+      user_edits: newUserEdits
+    }).eq("document_id", id);
+  };
+
   const handleResolvePause = async (index: number, answer: string | null, skipped: boolean) => {
     if (!cleanup || !diagnosis) return;
 
@@ -288,15 +351,24 @@ export default function CleanupPage() {
       : [{
           tag: "softened" as const,
           original_phrase: prevParagraph.original || "",
-          cleaned_phrase: prevParagraph.cleaned || "",
+          cleaned_phrase: prevParagraph.cleaned ?? prevParagraph.original ?? "",
           explanation: "Claim softened — no supporting evidence provided.",
           ...(pauseIssueId ? { issue_id: pauseIssueId } : {})
         }];
 
+    // Pause paragraphs have cleaned=null by design. Fall back to original text so
+    // we never emit an empty paragraph. If the user provided an answer, append it
+    // below the original claim so they can weave it inline via contentEditable;
+    // the synthetic change tag above records this as a fact_added edit.
+    const baseContent = prevParagraph.cleaned ?? prevParagraph.original ?? "";
+    const resolvedContent = hasAnswer
+      ? `${baseContent}\n\n${answer}`.trim()
+      : baseContent;
+
     updatedParagraphs[index] = {
       ...prevParagraph,
       type: "clean",
-      cleaned: skipped ? (prevParagraph.cleaned || "") : `${answer}\n\n${prevParagraph.cleaned || ""}`.trim(),
+      cleaned: resolvedContent,
       pause_card: null,
       changes: [...(prevParagraph.changes || []), ...factChange]
     } as ParagraphType;
@@ -443,12 +515,36 @@ export default function CleanupPage() {
   }
 
   if (loading || !doc || !diagnosis) {
+    const expectedSeconds = Math.round(cleanupTimeoutMs / 1000);
+    const elapsedSeconds = Math.round(pollingElapsed / 1000);
+    const pctComplete = polling ? Math.min(95, Math.round((pollingElapsed / cleanupTimeoutMs) * 100)) : 0;
+    const stageMessage = !polling
+      ? "Loading clean-up screen..."
+      : elapsedSeconds < 15
+        ? "Reading your content..."
+        : elapsedSeconds < 40
+          ? "Applying transformations..."
+          : elapsedSeconds < 80
+            ? "Weaving in evidence prompts..."
+            : "Finalising clean-up — longer docs take a little more time...";
+
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-white">
+      <div className="flex flex-col items-center justify-center h-screen bg-white px-6">
         <Spinner size="lg" className="text-gray-900 mb-4" />
-        <p className="text-[15px] font-medium text-gray-900 animate-pulse">
-          {polling ? "Applying transformations..." : "Loading clean-up screen..."}
-        </p>
+        <p className="text-[15px] font-medium text-gray-900 mb-2">{stageMessage}</p>
+        {polling && (
+          <>
+            <div className="w-[220px] h-[3px] bg-gray-100 rounded-full overflow-hidden mb-2">
+              <div
+                className="h-full bg-teal-500 transition-all duration-500"
+                style={{ width: `${pctComplete}%` }}
+              />
+            </div>
+            <p className="text-[12px] text-gray-400">
+              {elapsedSeconds}s elapsed · est. up to {expectedSeconds}s for {doc?.word_count || "your"} words
+            </p>
+          </>
+        )}
       </div>
     );
   }
@@ -467,6 +563,11 @@ export default function CleanupPage() {
             </h1>
             <p className="text-[12px] text-gray-400 font-medium">
               {cleanup?.issues_resolved || 0} of {diagnosis.issues.length} issues resolved
+              {brandProfileName ? (
+                <>
+                  {" "}·{" "}<span className="text-gray-500">{brandProfileName}</span>
+                </>
+              ) : null}
             </p>
           </div>
         </div>
@@ -576,7 +677,7 @@ export default function CleanupPage() {
           <div className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 py-6 sm:py-10 md:py-16 custom-scrollbar scroll-smooth">
             <div className="max-w-[640px] mx-auto">
               {cleanup?.paragraphs.map((p, idx) => (
-                <CleanupParagraph 
+                <CleanupParagraph
                   key={idx}
                   paragraph={p}
                   index={idx}
@@ -584,6 +685,7 @@ export default function CleanupPage() {
                   onEdit={handleEdit}
                   onTagClick={(tag) => setActiveDrawerTag(tag)}
                   onResolvePause={handleResolvePause}
+                  onRevert={handleRevert}
                   hasUserEdit={cleanup.user_edits?.some(e => e.paragraph_index === idx) || false}
                 />
               ))}

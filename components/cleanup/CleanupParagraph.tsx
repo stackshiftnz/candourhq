@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { CleanupParagraph as CleanupParagraphType, ChangeTag } from "@/lib/anthropic/types";
 import { PauseCard } from "./PauseCard";
-import { PencilIcon } from "lucide-react";
+import { PencilIcon, Undo2Icon, EyeIcon, EyeOffIcon } from "lucide-react";
 
 interface CleanupParagraphProps {
   paragraph: CleanupParagraphType;
@@ -13,6 +13,7 @@ interface CleanupParagraphProps {
   onTagClick: (tag: ChangeTag) => void;
   onResolvePause: (index: number, answer: string | null, skipped: boolean) => void;
   hasUserEdit: boolean;
+  onRevert?: (index: number) => void;
 }
 
 export function CleanupParagraph({
@@ -22,14 +23,22 @@ export function CleanupParagraph({
   onEdit,
   onTagClick,
   onResolvePause,
-  hasUserEdit
+  hasUserEdit,
+  onRevert
 }: CleanupParagraphProps) {
   const [localText, setLocalText] = useState(paragraph.cleaned || "");
+  const [showOriginal, setShowOriginal] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (paragraph.cleaned !== null) {
       setLocalText(paragraph.cleaned);
+      // contentEditable doesn't reliably re-render from React children when the
+      // DOM has been mutated by the user; imperatively sync when the prop changes
+      // (e.g. after a revert) and the DOM text diverges.
+      if (contentRef.current && contentRef.current.innerText !== paragraph.cleaned) {
+        contentRef.current.innerText = paragraph.cleaned;
+      }
     }
   }, [paragraph.cleaned]);
 
@@ -70,8 +79,30 @@ export function CleanupParagraph({
           <PencilIcon size={14} />
         </div>
       )}
+      <div className="absolute -top-1 right-0 flex items-center gap-1">
+        {paragraph.original && (
+          <button
+            onClick={() => setShowOriginal(v => !v)}
+            className="md:hidden flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-gray-500 hover:text-gray-900 border border-gray-200 bg-white rounded-md"
+            title="Toggle original paragraph"
+          >
+            {showOriginal ? <EyeOffIcon size={11} /> : <EyeIcon size={11} />}
+            {showOriginal ? "Hide original" : "Show original"}
+          </button>
+        )}
+        {hasUserEdit && onRevert && !isQueued && (
+          <button
+            onClick={() => onRevert(index)}
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-gray-500 hover:text-gray-900 border border-gray-200 bg-white rounded-md transition-opacity"
+            title="Revert to Candour's cleaned version"
+          >
+            <Undo2Icon size={11} />
+            Revert to AI version
+          </button>
+        )}
+      </div>
       
-      <div 
+      <div
         ref={contentRef}
         contentEditable={!isQueued}
         suppressContentEditableWarning
@@ -80,6 +111,17 @@ export function CleanupParagraph({
       >
         {localText}
       </div>
+
+      {showOriginal && paragraph.original && (
+        <div className="md:hidden mt-2 p-3 bg-gray-50 border-l-2 border-gray-200 rounded-r">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1">
+            Original
+          </span>
+          <p className="text-[13px] text-gray-500 leading-relaxed whitespace-pre-wrap">
+            {paragraph.original}
+          </p>
+        </div>
+      )}
 
       {!isQueued && paragraph.changes && paragraph.changes.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5 animate-in fade-in slide-in-from-top-1 duration-500">

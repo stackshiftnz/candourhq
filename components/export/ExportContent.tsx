@@ -2,14 +2,16 @@
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { 
-  FileTextIcon, 
-  FileDownIcon, 
-  TypeIcon, 
-  CopyIcon, 
+import {
+  FileTextIcon,
+  FileDownIcon,
+  TypeIcon,
+  CopyIcon,
   CheckCircle2Icon,
   ArrowLeftIcon,
   SearchIcon,
+  RefreshCwIcon,
+  TrendingUpIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ScoreBanner } from "./ScoreBanner";
@@ -78,13 +80,25 @@ export default function ExportContent({
     toast("Rescoring is taking longer than expected.", "error");
   }, [toast]);
 
-  const { execute: runRescore, error: rescoreError } = useAsyncAction(
+  const { execute: runRescore, loading: rescoreLoading, error: rescoreError } = useAsyncAction(
     action,
-    { 
+    {
       timeoutMs: 55000,
-      onTimeout 
+      onTimeout
     }
   );
+
+  const biggestImprovement = React.useMemo(() => {
+    if (!finalScores) return null;
+    const deltas = [
+      { label: "Substance", delta: finalScores.substance - (diagnosis.substance_score || 0) },
+      { label: "Style", delta: finalScores.style - (diagnosis.style_score || 0) },
+      { label: "Trust", delta: finalScores.trust - (diagnosis.trust_score || 0) },
+    ];
+    const best = deltas.reduce((a, b) => (b.delta > a.delta ? b : a));
+    if (best.delta <= 0) return null;
+    return best;
+  }, [finalScores, diagnosis.substance_score, diagnosis.style_score, diagnosis.trust_score]);
 
   const hasTriggeredRef = useRef(false);
 
@@ -148,7 +162,9 @@ export default function ExportContent({
           <h1 className="hidden lg:block text-[14px] font-bold text-gray-900 leading-tight">
             {safeTitle}
           </h1>
-          <p className="text-[12px] text-gray-400 font-medium">Export and save</p>
+          <p className="text-[12px] text-gray-400 font-medium">
+            Export and save · <span className="text-gray-500">{brandProfile?.name || "Standard Profile"}</span>
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -176,7 +192,17 @@ export default function ExportContent({
           
           {/* Left Column: Main Actions */}
           <div className="flex-1">
-            <ScoreBanner 
+            {biggestImprovement ? (
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <TrendingUpIcon size={14} className="text-green-600" />
+                <span className="text-[12px] font-semibold text-gray-700">
+                  Biggest improvement: {biggestImprovement.label}{" "}
+                  <span className="text-green-600">+{biggestImprovement.delta.toFixed(1)} pts</span>
+                </span>
+              </div>
+            ) : null}
+
+            <ScoreBanner
               originalScore={diagnosis.average_score_original || 0}
               finalScore={finalScores?.average || null}
               resolvedCount={cleanup.issues_resolved}
@@ -184,6 +210,23 @@ export default function ExportContent({
               profileName={brandProfile?.name || "Standard Profile"}
               rescoreError={!!rescoreError}
             />
+
+            {rescoreError ? (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 -mt-6 mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-[13px] text-amber-800">
+                  Using estimated scores — final recalculation didn&apos;t complete.
+                </p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => runRescore()}
+                  disabled={rescoreLoading}
+                >
+                  <RefreshCwIcon size={14} className={`mr-2 ${rescoreLoading ? "animate-spin" : ""}`} />
+                  {rescoreLoading ? "Recalculating…" : "Recalculate"}
+                </Button>
+              </div>
+            ) : null}
 
             <section className="mb-12">
               <h2 className="text-[12px] font-bold uppercase tracking-widest text-gray-400 mb-4 px-1">
@@ -233,11 +276,6 @@ export default function ExportContent({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white border border-gray-200 rounded-xl shadow-sm gap-4 transition-all hover:border-gray-300">
                 <div className="flex flex-col">
                   <span className="text-[13px] font-semibold text-gray-900">Download quality report</span>
-                  {rescoreError ? (
-                    <p className="text-[13px] text-amber-600 font-medium mt-3 text-center">
-                      Using estimated scores — recalculation failed.
-                    </p>
-                  ) : null}
                   <p className="text-[12px] text-gray-500 max-w-[450px]">
                     One-page PDF showing original scores, final scores, all issues found, changes applied, and brand profile used. Share with clients or keep on file.
                   </p>

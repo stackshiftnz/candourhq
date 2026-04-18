@@ -6,7 +6,7 @@ import { CleanupResponse, CleanupParagraph, DiagnosisIssue } from "@/lib/anthrop
 import { getCleanupSystemPrompt } from "@/lib/anthropic/prompts/cleanup";
 import type { TextBlockParam } from "@anthropic-ai/sdk/resources/messages";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   const supabase = createClient();
