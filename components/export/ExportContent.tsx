@@ -246,7 +246,9 @@ export default function ExportContent({
                   Download PDF
                 </Button>
               </div>
-            </section>section { /* Mobile only Provenance & Scores in main flow */ }
+            </section>
+
+            {/* Mobile only Provenance & Scores in main flow */}
             <div className="lg:hidden flex flex-col gap-8 mb-12">
                <section>
                   <h2 className="text-[12px] font-bold uppercase tracking-widest text-gray-400 mb-4 px-1">

@@ -35,6 +35,7 @@ export default function DiagnosisPage() {
   const [analysisState, setAnalysisState] = useState<"loading" | "error" | "done">("loading");
 
   const pollingStartTime = useRef(Date.now());
+  const autoTriggerFired = useRef(false);
   const POLLING_TIMEOUT_MS = 90_000;
 
   // For scrolling bidirectional
@@ -69,7 +70,17 @@ export default function DiagnosisPage() {
       if (diag) setDiagnosis(diag);
       setLoading(false);
     } else if (doc.status === "pending") {
-      // Auto-trigger analysis
+      // Auto-trigger analysis — guard against double-fire (React strict mode,
+      // multi-tab, navigation returns) with a ref and a cross-tab sessionStorage lock.
+      const lockKey = `analyse-trigger:${id}`;
+      if (autoTriggerFired.current) return;
+      if (typeof window !== "undefined" && sessionStorage.getItem(lockKey)) return;
+
+      autoTriggerFired.current = true;
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(lockKey, Date.now().toString());
+      }
+
       try {
         await fetch("/api/analyse", {
           method: "POST",
@@ -89,7 +100,13 @@ export default function DiagnosisPage() {
   const handleError = useCallback(async () => {
     setAnalysisState("error");
     toast("Analysis failed. Your content has been saved — try again from History.", "error");
-    
+
+    // Clear trigger lock so the user can retry
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(`analyse-trigger:${id}`);
+    }
+    autoTriggerFired.current = false;
+
     // Revert status to pending
     await supabase
       .from("documents")
@@ -110,7 +127,6 @@ export default function DiagnosisPage() {
 
       if (elapsed > POLLING_TIMEOUT_MS) {
         clearInterval(timer);
-        clearInterval(timer);
         handleError();
         return;
       }
@@ -125,6 +141,9 @@ export default function DiagnosisPage() {
         fetchDocument();
         setAnalysisState("done");
         clearInterval(timer);
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem(`analyse-trigger:${id}`);
+        }
       }
 
       if (elapsed > 20_000) {

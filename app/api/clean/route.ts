@@ -86,7 +86,14 @@ export async function POST(req: Request) {
       .update({ status: "cleaning" })
       .eq("id", documentId);
 
-    // 5. Build system prompt
+    // 5. Build system prompt — ensure every issue has an issue_id before handing it to the model.
+    // Backfills for diagnoses persisted before the issue_id field existed.
+    const issuesWithIds: DiagnosisIssue[] = ((diagnosis.issues || []) as unknown as DiagnosisIssue[])
+      .map((issue) => ({
+        ...issue,
+        issue_id: issue.issue_id || `${issue.priority}-${issue.char_start}-${issue.char_end}`,
+      }));
+
     const languageVariant = brandProfile?.language_variant || document.language_variant || "en-US";
     const systemPrompt = getCleanupSystemPrompt({
       languageVariant,
@@ -95,7 +102,7 @@ export async function POST(req: Request) {
       bannedPhrases: brandProfile?.banned_phrases || [],
       approvedPhrases: brandProfile?.approved_phrases || [],
       contentType: document.content_type,
-      diagnosisIssues: (diagnosis.issues || []) as unknown as DiagnosisIssue[]
+      diagnosisIssues: issuesWithIds
     });
 
     // 6. Send to Anthropic
@@ -152,18 +159,27 @@ export async function POST(req: Request) {
       // For now, we'll proceed but log it.
     }
 
-    // 9. Calculate stats
+    // 9. Calculate stats — count unique resolved issue_ids (a single issue can yield
+    // multiple change tags in the same paragraph; counting changes overcounts).
     const issuesTotal = (diagnosis.issues as unknown as DiagnosisIssue[] || []).length;
-    let issuesResolved = 0;
+    const resolvedIssueIds = new Set<string>();
     let pauseCardsTotal = 0;
 
     cleanupData.paragraphs.forEach(p => {
       if (p.type === 'clean') {
-        issuesResolved += (p.changes?.length || 0);
+        p.changes?.forEach(c => {
+          if (c.issue_id) resolvedIssueIds.add(c.issue_id);
+        });
       } else if (p.type === 'pause') {
         pauseCardsTotal++;
       }
     });
+
+    // Fallback for a run where the model didn't return issue_ids at all: preserve
+    // the previous heuristic so resolved count isn't stuck at zero.
+    const issuesResolved = resolvedIssueIds.size > 0
+      ? resolvedIssueIds.size
+      : cleanupData.paragraphs.reduce((sum, p) => sum + (p.type === 'clean' ? (p.changes?.length || 0) : 0), 0);
 
     // 10. Write cleanups record
     const { data: nextCleanup, error: cleanupInsertError } = await supabase

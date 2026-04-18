@@ -29,6 +29,9 @@ export interface DiagnosisIssue {
   priority: 'trust' | 'substance' | 'style'
   char_start: number
   char_end: number
+  // Deterministic identifier: `${priority}-${char_start}-${char_end}`.
+  // Optional for backwards-compat with diagnoses persisted before this field existed.
+  issue_id?: string
 }
 
 export interface ChangeTag {
@@ -43,6 +46,7 @@ export interface ChangeTag {
   original_phrase: string
   cleaned_phrase: string
   explanation: string
+  issue_id?: string
 }
 
 export interface PauseCard {
@@ -50,6 +54,7 @@ export interface PauseCard {
   hint: string
   user_answer: string | null
   skipped: boolean
+  issue_id?: string
 }
 
 export interface CleanupParagraph {

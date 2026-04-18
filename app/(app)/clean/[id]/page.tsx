@@ -5,9 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Database, UserEdit } from "@/types/database";
-import { 
+import {
   CleanupParagraph as ParagraphType,
-  ChangeTag
+  ChangeTag,
+  DiagnosisIssue
 } from "@/lib/anthropic/types";
 import { CleanupParagraph } from "@/components/cleanup/CleanupParagraph";
 import { IssueQueue } from "@/components/cleanup/IssueQueue";
@@ -15,7 +16,7 @@ import { ExplanationDrawer } from "@/components/cleanup/ExplanationDrawer";
 import { HighlightText } from "@/components/analyse/HighlightText";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
-import { ArrowRightIcon, HistoryIcon, UserIcon, CheckCircle2Icon } from "lucide-react";
+import { ArrowRightIcon, HistoryIcon, UserIcon, CheckCircle2Icon, InfoIcon } from "lucide-react";
 import { submitForApproval } from "@/app/actions/team";
 import { useToast } from "@/lib/hooks/useToast";
 
@@ -137,34 +138,52 @@ export default function CleanupPage() {
     return index > firstUnresolvedPauseIndex;
   };
 
-  // Resolved Issue Matching Logic
+  // Resolved Issue Matching Logic — prefers deterministic issue_id, falls back
+  // to fuzzy string matching for diagnoses persisted before issue_id existed.
   const resolvedIssuesData = useMemo(() => {
     if (!cleanup || !diagnosis) return { ids: new Set<string>(), indices: new Set<number>() };
-    
+
     const ids = new Set<string>();
     const indices = new Set<number>();
-    
-    // 1. Check all change tags in paragraphs
+
+    const canonicalId = (issue: DiagnosisIssue) =>
+      issue.issue_id || `${issue.priority}-${issue.char_start}-${issue.char_end}`;
+
+    const issuesByIndex: Array<{ issue: DiagnosisIssue; idx: number; id: string }> = diagnosis.issues
+      .map((issue, idx) => ({ issue, idx, id: canonicalId(issue) }));
+
+    const markResolved = (id: string) => {
+      const entry = issuesByIndex.find(e => e.id === id);
+      if (entry) {
+        ids.add(entry.id);
+        indices.add(entry.idx);
+      }
+    };
+
     cleanup.paragraphs.forEach(p => {
+      // Resolved changes on clean paragraphs
       if (p.type === "clean" && p.changes) {
         p.changes.forEach(tag => {
-          // Find matching issue in diagnosis
-          diagnosis.issues.forEach((issue, idx) => {
-            if (issue.phrase === tag.original_phrase || 
-                tag.original_phrase.includes(issue.phrase) || 
-                issue.phrase.includes(tag.original_phrase)) {
-              const issueId = `${issue.priority}-${issue.char_start}-${issue.char_end}`;
-              ids.add(issueId);
-              indices.add(idx);
-            }
-          });
+          if (tag.issue_id) {
+            markResolved(tag.issue_id);
+          } else {
+            // Backwards-compat fuzzy match
+            issuesByIndex.forEach(({ issue, idx, id }) => {
+              if (
+                issue.phrase === tag.original_phrase ||
+                tag.original_phrase.includes(issue.phrase) ||
+                issue.phrase.includes(tag.original_phrase)
+              ) {
+                ids.add(id);
+                indices.add(idx);
+              }
+            });
+          }
         });
       }
+      // Resolved pause cards (converted to clean paragraphs retain their pause_card.issue_id
+      // via the synthetic fact_added change tag — see handleResolvePause).
     });
-
-    // 2. Count manual resolutions (like pause cards or "Accept remaining" if we track it specifically)
-    // For simplicity, we also count issues_resolved count if it exceeds the tag count
-    // but the phrase matching is better for the UI highlights.
 
     return { ids, indices };
   }, [cleanup, diagnosis]);
@@ -175,20 +194,31 @@ export default function CleanupPage() {
   const issueToParagraphMap = useMemo(() => {
     if (!cleanup || !diagnosis) return new Map<number, number>();
     const map = new Map<number, number>();
-    
-    diagnosis.issues.forEach((issue, issueIdx) => {
+
+    const canonicalId = (issue: DiagnosisIssue) =>
+      issue.issue_id || `${issue.priority}-${issue.char_start}-${issue.char_end}`;
+
+    (diagnosis.issues as unknown as DiagnosisIssue[]).forEach((issue, issueIdx) => {
+      const id = canonicalId(issue);
       cleanup.paragraphs.forEach((p, pIdx) => {
-        // Match by phrase or if it's a pause card that will address this
-        if (p.type === "clean" && p.changes?.some(c => 
-          c.original_phrase === issue.phrase || 
-          c.original_phrase.includes(issue.phrase) ||
-          issue.phrase.includes(c.original_phrase)
-        )) {
+        if (p.type === "clean" && p.changes?.some(c => {
+          if (c.issue_id && c.issue_id === id) return true;
+          if (c.issue_id) return false; // issue_id present but doesn't match → no fuzzy fallback
+          // Backwards-compat fuzzy match when no issue_id is set
+          return (
+            c.original_phrase === issue.phrase ||
+            c.original_phrase.includes(issue.phrase) ||
+            issue.phrase.includes(c.original_phrase)
+          );
+        })) {
           map.set(issueIdx, pIdx);
         }
-        // Also match pause cards by query
-        if (p.type === "pause" && p.pause_card?.question.toLowerCase().includes(issue.phrase.toLowerCase())) {
-          map.set(issueIdx, pIdx);
+        if (p.type === "pause" && p.pause_card) {
+          if (p.pause_card.issue_id && p.pause_card.issue_id === id) {
+            map.set(issueIdx, pIdx);
+          } else if (!p.pause_card.issue_id && p.pause_card.question.toLowerCase().includes(issue.phrase.toLowerCase())) {
+            map.set(issueIdx, pIdx);
+          }
         }
       });
     });
@@ -235,14 +265,33 @@ export default function CleanupPage() {
 
     const updatedParagraphs = [...cleanup.paragraphs];
     const prevParagraph = updatedParagraphs[index];
-    
-    // Transform pause to clean
-    const factChange = (!skipped && answer) ? [{
-      tag: "fact_added" as const,
-      original_phrase: "",
-      cleaned_phrase: answer,
-      explanation: `User-supplied fact added: "${answer}"`
-    }] : [];
+
+    // Preserve the pause card's issue_id on the synthetic change tag so the
+    // resolved-issues matching logic correctly strikes through the highlight
+    // in the Original column and ticks the queue item.
+    const pauseIssueId = prevParagraph.pause_card?.issue_id;
+
+    // Transform pause to clean. Per spec:
+    // - Answer provided  → fact_added change tag
+    // - Skipped or empty → softened change tag (claim reduced without evidence)
+    // Use the paragraph's original text as the original_phrase so the change is
+    // traceable even for pre-issue_id data.
+    const hasAnswer = !skipped && !!answer;
+    const factChange: ChangeTag[] = hasAnswer
+      ? [{
+          tag: "fact_added" as const,
+          original_phrase: prevParagraph.original || "",
+          cleaned_phrase: answer!,
+          explanation: `User-supplied fact added: "${answer}"`,
+          ...(pauseIssueId ? { issue_id: pauseIssueId } : {})
+        }]
+      : [{
+          tag: "softened" as const,
+          original_phrase: prevParagraph.original || "",
+          cleaned_phrase: prevParagraph.cleaned || "",
+          explanation: "Claim softened — no supporting evidence provided.",
+          ...(pauseIssueId ? { issue_id: pauseIssueId } : {})
+        }];
 
     updatedParagraphs[index] = {
       ...prevParagraph,
@@ -252,17 +301,25 @@ export default function CleanupPage() {
       changes: [...(prevParagraph.changes || []), ...factChange]
     } as ParagraphType;
 
-    // Calculate new total resolved count
+    // Calculate new counters
     const newResolvedCount = (cleanup.issues_resolved || 0) + 1;
+    const wasAnswered = !skipped && !!answer;
+    const newAnsweredCount = (cleanup.pause_cards_answered || 0) + (wasAnswered ? 1 : 0);
 
-    setCleanup({ ...cleanup, paragraphs: updatedParagraphs, issues_resolved: newResolvedCount });
+    setCleanup({
+      ...cleanup,
+      paragraphs: updatedParagraphs,
+      issues_resolved: newResolvedCount,
+      pause_cards_answered: newAnsweredCount
+    });
 
     // If all resolved, update document status
     const isActuallyComplete = newResolvedCount >= diagnosis.issues.length;
 
     await supabase.from("cleanups").update({
       paragraphs: updatedParagraphs,
-      issues_resolved: newResolvedCount
+      issues_resolved: newResolvedCount,
+      pause_cards_answered: newAnsweredCount
     }).eq("document_id", id);
 
     if (isActuallyComplete) {
@@ -338,6 +395,14 @@ export default function CleanupPage() {
     if (!cleanup || !diagnosis) return 0;
     return Math.round(((cleanup.issues_resolved || 0) / diagnosis.issues.length) * 100);
   }, [cleanup, diagnosis]);
+
+  const paragraphMismatch = useMemo(() => {
+    if (!doc?.original_content || !cleanup?.paragraphs) return null;
+    const originalCount = doc.original_content.trim().split(/\n\s*\n/).filter(p => p.trim()).length;
+    const cleanedCount = cleanup.paragraphs.length;
+    if (originalCount === cleanedCount) return null;
+    return { originalCount, cleanedCount };
+  }, [doc, cleanup]);
 
   if (error) {
     return (
@@ -438,11 +503,22 @@ export default function CleanupPage() {
 
       {/* Progress Bar */}
       <div className="h-[3px] w-full bg-gray-50 shrink-0">
-        <div 
-          className="h-full bg-teal-500 transition-all duration-[600ms] ease-out" 
+        <div
+          className="h-full bg-teal-500 transition-all duration-[600ms] ease-out"
           style={{ width: `${progressPercent}%` }}
         />
       </div>
+
+      {/* Paragraph mismatch banner — AI merged or split paragraphs, so positional
+          mapping may be imprecise. Surface this to the user rather than silently proceed. */}
+      {paragraphMismatch && (
+        <div className="shrink-0 px-4 sm:px-6 py-2 bg-amber-50 border-b border-amber-100 flex items-start gap-2 text-[12px] text-amber-800">
+          <InfoIcon size={14} className="mt-0.5 shrink-0" />
+          <span>
+            Structure changed during clean-up — your original had {paragraphMismatch.originalCount} paragraph{paragraphMismatch.originalCount === 1 ? "" : "s"}, the cleaned version has {paragraphMismatch.cleanedCount}. Review carefully before exporting; you can edit any paragraph inline.
+          </span>
+        </div>
+      )}
 
       {/* Main Content Areas */}
       <div className="flex-1 flex overflow-hidden relative pt-[48px] md:pt-0">
@@ -532,11 +608,18 @@ export default function CleanupPage() {
             <div className="h-[72px] border-t border-gray-100 px-4 sm:px-8 flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-md z-30">
               <div className="flex items-center gap-4">
                 <div className="flex flex-col">
-                  <span className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">Estimated Score</span>
+                  <span
+                    className="text-[12px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1"
+                    title="Live estimate based on issues resolved. Accurate score is calculated when you export."
+                  >
+                    Estimated Score
+                    <InfoIcon size={11} className="text-gray-300" />
+                  </span>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-[20px] font-bold text-gray-900">{currentScore}</span>
+                    <span className="text-[20px] font-bold text-gray-900">~{currentScore}</span>
                     <span className="text-[12px] font-bold text-teal-600">+{ (currentScore - (diagnosis.average_score_original || 0)).toFixed(1) }pts</span>
                   </div>
+                  <span className="text-[10px] text-gray-400 mt-0.5">Final score on export</span>
                 </div>
               </div>
               <Button variant="secondary" size="md" onClick={handleAcceptRemaining}>

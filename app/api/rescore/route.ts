@@ -131,11 +131,9 @@ export async function POST(req: Request) {
       throw updateError;
     }
 
-    // 8. Update document status to exported as per spec
-    await supabase
-      .from("documents")
-      .update({ status: "exported", updated_at: new Date().toISOString() })
-      .eq("id", documentId);
+    // Note: document.status -> 'exported' is set by the export page RSC on mount,
+    // independent of rescore success. This keeps the lifecycle correct even when
+    // rescore times out or fails.
 
     return NextResponse.json({
       scores: {

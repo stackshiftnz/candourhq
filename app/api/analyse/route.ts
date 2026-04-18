@@ -150,6 +150,14 @@ export async function POST(req: Request) {
     const priorityOrder = { trust: 0, substance: 1, style: 2 };
     diagnosis.issues.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
+    // Attach deterministic issue_id to every issue. The ID format matches the
+    // existing UI-side convention (`${priority}-${char_start}-${char_end}`) so
+    // HighlightText and issue-card components can use it without changes.
+    diagnosis.issues = diagnosis.issues.map((issue) => ({
+      ...issue,
+      issue_id: `${issue.priority}-${issue.char_start}-${issue.char_end}`,
+    }));
+
     // 7. Write diagnoses record (upsert guards against concurrent duplicate requests)
     const { error: diagInsertError } = await supabase
       .from("diagnoses")

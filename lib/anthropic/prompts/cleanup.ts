@@ -49,6 +49,7 @@ Rules:
 7. Preserve approved phrases exactly.
 8. Keep paragraph count the same.
 9. Punctuation Rules: No Em-Dashes. NEVER USE EM-DASHES (—). This is a critical requirement. Do not use the em-dash character anywhere. Alternatives: Use two sentences, commas, parentheses, or colons.
+10. Every change tag and every pause card MUST include the exact "issue_id" string from the diagnosed issue it resolves. Copy the issue_id value verbatim — do not modify, hash, or rename it. This ID links your output back to the diagnosis for UI tracking. If a change does not correspond to a specific diagnosed issue, omit issue_id for that change.
 
 Return ONLY valid JSON — no preamble, no markdown fences:
 {
@@ -58,11 +59,12 @@ Return ONLY valid JSON — no preamble, no markdown fences:
       "original": "original paragraph text",
       "cleaned": "cleaned paragraph text",
       "changes": [
-        { 
-          "tag": "tightened|made_specific|hedge_removed|brand_voice|cliche_removed|softened|fact_added", 
-          "original_phrase": "...", 
-          "cleaned_phrase": "...", 
-          "explanation": "2-4 sentences plain English naming the improvement" 
+        {
+          "tag": "tightened|made_specific|hedge_removed|brand_voice|cliche_removed|softened|fact_added",
+          "original_phrase": "...",
+          "cleaned_phrase": "...",
+          "explanation": "2-4 sentences plain English naming the improvement",
+          "issue_id": "exact issue_id string copied from the diagnosed issue"
         }
       ],
       "pause_card": null
@@ -72,11 +74,12 @@ Return ONLY valid JSON — no preamble, no markdown fences:
       "original": "original paragraph with unsupported claim",
       "cleaned": null,
       "changes": [],
-      "pause_card": { 
-        "question": "specific question referencing the exact claim in quotes, asks for evidence or real outcome, max 2 sentences", 
-        "hint": "Example: [concrete example of a good answer]", 
-        "user_answer": null, 
-        "skipped": false 
+      "pause_card": {
+        "question": "specific question referencing the exact claim in quotes, asks for evidence or real outcome, max 2 sentences",
+        "hint": "Example: [concrete example of a good answer]",
+        "user_answer": null,
+        "skipped": false,
+        "issue_id": "exact issue_id string copied from the diagnosed issue this pause card addresses"
       }
     }
   ]

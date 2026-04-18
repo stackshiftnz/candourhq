@@ -45,11 +45,16 @@ export default async function ExportPage({ params }: ExportPageProps) {
     notFound();
   }
 
-  // 2. Update status to 'exported'
-  await supabase
-    .from("documents")
-    .update({ status: "exported", updated_at: new Date().toISOString() })
-    .eq("id", id);
+  // 2. Update status to 'exported' — but only from states that should progress here.
+  // Prevents downgrading 'approved' documents that bypass rescore, and avoids
+  // churning updated_at on every refresh.
+  const progressableStatuses = ["cleaned", "submitted", "approved"];
+  if (progressableStatuses.includes(document.status)) {
+    await supabase
+      .from("documents")
+      .update({ status: "exported", updated_at: new Date().toISOString() })
+      .eq("id", id);
+  }
 
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden">

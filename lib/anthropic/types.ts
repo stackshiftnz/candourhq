@@ -48,6 +48,11 @@ export interface DiagnosisIssue {
   priority: IssuePriority
   char_start: number
   char_end: number
+  // Deterministic identifier computed server-side as `${priority}-${char_start}-${char_end}`.
+  // Used to match changes and pause-card resolutions back to the issue that spawned them,
+  // without relying on fuzzy string matching of `phrase` / `original_phrase`.
+  // Optional for backwards-compat with diagnoses persisted before this field was added.
+  issue_id?: string
 }
 
 export interface DiagnosisSignal {
@@ -73,6 +78,8 @@ export interface ChangeTag {
   original_phrase: string
   cleaned_phrase: string
   explanation: string
+  // Links this change back to the DiagnosisIssue it resolves. Optional for backwards-compat.
+  issue_id?: string
 }
 
 export interface PauseCard {
@@ -80,6 +87,8 @@ export interface PauseCard {
   hint: string
   user_answer: string | null
   skipped: boolean
+  // Links this pause card back to the DiagnosisIssue it addresses. Optional for backwards-compat.
+  issue_id?: string
 }
 
 export interface CleanupParagraph {
