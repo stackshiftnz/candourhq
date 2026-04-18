@@ -15,7 +15,7 @@ import { useToast } from "@/lib/hooks/useToast";
 import { Tabs } from "@/components/ui/Tabs";
 import { getWordCount } from "@/lib/utils/word-count";
 import { trackEvent } from "@/lib/telemetry/client";
-import { PanelLeftCloseIcon, PanelLeftOpenIcon, PanelRightCloseIcon, PanelRightOpenIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 type Document = Database["public"]["Tables"]["documents"]["Row"];
 type Diagnosis = Database["public"]["Tables"]["diagnoses"]["Row"];
@@ -437,21 +437,27 @@ export default function DiagnosisPage() {
         <div className={[
           "lg:border-r border-gray-100 flex flex-col overflow-hidden bg-white transition-all duration-200",
           activeTab === "original" ? "flex flex-1" : "hidden lg:flex",
-          collapsedCols.original ? "lg:w-[32px] lg:flex-none" : "lg:w-[280px] lg:flex-none"
+          collapsedCols.original ? "lg:w-[32px] lg:flex-none lg:shrink-0" : "lg:flex-1 lg:min-w-0"
         ].join(" ")}>
-          <div className="px-3 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
+          <div className="px-2 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
             {!collapsedCols.original && (
-              <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Original</h2>
+              <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider pl-1">Original</h2>
             )}
             <button
               onClick={() => toggleCol("original")}
               className="hidden lg:flex ml-auto items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               title={collapsedCols.original ? "Expand Original" : "Collapse Original"}
             >
-              {collapsedCols.original ? <PanelLeftOpenIcon size={14} /> : <PanelLeftCloseIcon size={14} />}
+              {collapsedCols.original ? <ChevronRightIcon size={14} /> : <ChevronLeftIcon size={14} />}
             </button>
           </div>
-          {!collapsedCols.original && (
+          {collapsedCols.original ? (
+            <div className="flex-1 flex items-center justify-center overflow-hidden">
+              <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest whitespace-nowrap -rotate-90">
+                Original
+              </span>
+            </div>
+          ) : (
             <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar" ref={originalColumnRef}>
               <HighlightText
                 content={doc.original_content || ""}
@@ -468,12 +474,12 @@ export default function DiagnosisPage() {
         <div className={[
           "lg:border-r border-gray-100 flex flex-col overflow-hidden bg-gray-50 transition-all duration-200",
           activeTab === "scores" ? "flex flex-1" : "hidden lg:flex",
-          collapsedCols.scores ? "lg:w-[32px] lg:flex-none" : "lg:w-[320px] lg:flex-none"
+          collapsedCols.scores ? "lg:w-[32px] lg:flex-none lg:shrink-0" : "lg:flex-1 lg:min-w-0"
         ].join(" ")}>
-          <div className="px-3 py-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
+          <div className="px-2 py-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
             {!collapsedCols.scores && (
               <>
-                <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Analysis</h2>
+                <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider pl-1">Analysis</h2>
                 <div className="flex items-center gap-2">
                   <span className="text-[15px] font-bold text-gray-900">{diagnosis.average_score_original}</span>
                   <span className="text-[12px] text-gray-400">/10</span>
@@ -485,10 +491,16 @@ export default function DiagnosisPage() {
               className="hidden lg:flex ml-auto items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               title={collapsedCols.scores ? "Expand Analysis" : "Collapse Analysis"}
             >
-              {collapsedCols.scores ? <PanelLeftOpenIcon size={14} /> : <PanelLeftCloseIcon size={14} />}
+              {collapsedCols.scores ? <ChevronRightIcon size={14} /> : <ChevronLeftIcon size={14} />}
             </button>
           </div>
-          {!collapsedCols.scores && (
+          {collapsedCols.scores ? (
+            <div className="flex-1 flex items-center justify-center overflow-hidden">
+              <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest whitespace-nowrap -rotate-90">
+                Analysis
+              </span>
+            </div>
+          ) : (
           <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar">
             {/* Headline Finding Card */}
             <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 shadow-sm">
@@ -532,22 +544,28 @@ export default function DiagnosisPage() {
           activeTab === "issues" ? "flex flex-1" : "hidden lg:flex",
           collapsedCols.issues ? "lg:w-[32px] lg:flex-none" : "lg:flex-1"
         ].join(" ")}>
-          <div className="px-3 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
+          <div className="px-2 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
+            <button
+              onClick={() => toggleCol("issues")}
+              className="hidden lg:flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
+              title={collapsedCols.issues ? "Expand Issues" : "Collapse Issues"}
+            >
+              {collapsedCols.issues ? <ChevronLeftIcon size={14} /> : <ChevronRightIcon size={14} />}
+            </button>
             {!collapsedCols.issues && (
               <>
-                <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Issues</h2>
+                <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider pl-1">Issues</h2>
                 <span className="text-[12px] text-gray-400 font-medium">{data.issues.length} flagged</span>
               </>
             )}
-            <button
-              onClick={() => toggleCol("issues")}
-              className="hidden lg:flex ml-auto items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              title={collapsedCols.issues ? "Expand Issues" : "Collapse Issues"}
-            >
-              {collapsedCols.issues ? <PanelRightOpenIcon size={14} /> : <PanelRightCloseIcon size={14} />}
-            </button>
           </div>
-          {!collapsedCols.issues && (
+          {collapsedCols.issues ? (
+            <div className="flex-1 flex items-center justify-center overflow-hidden">
+              <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest whitespace-nowrap rotate-90">
+                Issues
+              </span>
+            </div>
+          ) : (
           <>
           <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar" ref={issuesColumnRef}>
             {issueCount === 0 ? (

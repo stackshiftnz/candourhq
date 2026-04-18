@@ -16,7 +16,7 @@ import { ExplanationDrawer } from "@/components/cleanup/ExplanationDrawer";
 import { HighlightText } from "@/components/analyse/HighlightText";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
-import { ArrowRightIcon, HistoryIcon, UserIcon, CheckCircle2Icon, InfoIcon, ClockIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PanelRightCloseIcon, PanelRightOpenIcon } from "lucide-react";
+import { ArrowRightIcon, HistoryIcon, UserIcon, CheckCircle2Icon, InfoIcon, ClockIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { submitForApproval } from "@/app/actions/team";
 import { useToast } from "@/lib/hooks/useToast";
 import { trackEvent } from "@/lib/telemetry/client";
@@ -926,20 +926,26 @@ export default function CleanupPage() {
         </div>
 
         {/* Column 1: Original (Desktop) */}
-        <div className={`hidden md:flex flex-col border-r border-gray-100 bg-white shrink-0 overflow-hidden transition-all duration-200 ${collapsedCols.original ? "w-[32px]" : "w-[260px]"}`}>
-          <div className="px-3 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
+        <div className={`hidden md:flex flex-col border-r border-gray-100 bg-white overflow-hidden transition-all duration-200 ${collapsedCols.original ? "w-[32px] shrink-0" : "flex-1 min-w-0"}`}>
+          <div className="px-2 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
             {!collapsedCols.original && (
-              <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">Original</h2>
+              <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest pl-1">Original</h2>
             )}
             <button
               onClick={() => toggleCol("original")}
               className="ml-auto flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               title={collapsedCols.original ? "Expand Original" : "Collapse Original"}
             >
-              {collapsedCols.original ? <PanelLeftOpenIcon size={14} /> : <PanelLeftCloseIcon size={14} />}
+              {collapsedCols.original ? <ChevronRightIcon size={14} /> : <ChevronLeftIcon size={14} />}
             </button>
           </div>
-          {!collapsedCols.original && (
+          {collapsedCols.original ? (
+            <div className="flex-1 flex items-center justify-center overflow-hidden">
+              <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest whitespace-nowrap -rotate-90">
+                Original
+              </span>
+            </div>
+          ) : (
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar opacity-60">
             <HighlightText
               content={doc.original_content}
@@ -1028,20 +1034,26 @@ export default function CleanupPage() {
         </div>
 
         {/* Column 3: Queue (Desktop) */}
-        <div className={`hidden lg:flex flex-col shrink-0 overflow-hidden transition-all duration-200 ${collapsedCols.queue ? "w-[32px]" : "w-[280px]"}`}>
-          <div className="px-3 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
-            {!collapsedCols.queue && (
-              <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">Queue</h2>
-            )}
+        <div className={`hidden lg:flex flex-col overflow-hidden transition-all duration-200 ${collapsedCols.queue ? "w-[32px] shrink-0" : "flex-1 min-w-0"}`}>
+          <div className="px-2 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
             <button
               onClick={() => toggleCol("queue")}
-              className="ml-auto flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              className="flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
               title={collapsedCols.queue ? "Expand Queue" : "Collapse Queue"}
             >
-              {collapsedCols.queue ? <PanelRightOpenIcon size={14} /> : <PanelRightCloseIcon size={14} />}
+              {collapsedCols.queue ? <ChevronLeftIcon size={14} /> : <ChevronRightIcon size={14} />}
             </button>
+            {!collapsedCols.queue && (
+              <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest pl-1">Queue</h2>
+            )}
           </div>
-          {!collapsedCols.queue && (
+          {collapsedCols.queue ? (
+            <div className="flex-1 flex items-center justify-center overflow-hidden">
+              <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest whitespace-nowrap rotate-90">
+                Queue
+              </span>
+            </div>
+          ) : (
           <IssueQueue
             issues={diagnosis.issues}
             resolvedIssueIndices={resolvedIssueIndices}
