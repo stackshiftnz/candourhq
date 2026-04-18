@@ -4,6 +4,9 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
+import Image from "next/image";
+import Link from "next/link";
+
 export function MobileHeader() {
   const router = useRouter();
   const supabase = createClient();
@@ -16,12 +19,16 @@ export function MobileHeader() {
 
   return (
     <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-100 dark:bg-gray-950 dark:border-gray-900 z-50 flex items-center justify-between px-4 lg:hidden">
-      <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-full bg-gray-900 flex items-center justify-center">
-          <div className="w-3.5 h-3.5 rounded-full bg-white border-[3px] border-gray-900" />
-        </div>
-        <span className="font-bold text-[16px] tracking-tight">Candour</span>
-      </div>
+      <Link href="/dashboard" className="flex items-center gap-2">
+        <Image 
+          src="/logo.png" 
+          alt="Candour HQ" 
+          width={100} 
+          height={32} 
+          className="h-7 w-auto dark:invert-0" 
+          priority
+        />
+      </Link>
 
       <div className="relative">
         <button

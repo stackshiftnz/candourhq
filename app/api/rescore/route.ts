@@ -39,6 +39,8 @@ export async function POST(req: Request) {
       .from("cleanups")
       .select("final_content")
       .eq("document_id", documentId)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single();
 
     if (cleanError || !cleanup || !cleanup.final_content) {

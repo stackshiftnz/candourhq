@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -45,15 +46,19 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 h-full w-[240px] flex flex-col bg-brand-cream border-none dark:bg-brand-dark">
       {/* Wordmark */}
-      <div className="px-6 pt-8 pb-8 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-brand-dark flex items-center justify-center flex-shrink-0">
-          <div className="w-4 h-4 rounded-full bg-white border-4 border-brand-dark box-border shadow-[0_0_0_2px_#181818]" style={{ boxShadow: 'inset 0 0 0 2px white' }} />
-        </div>
-        <div>
-          <p className="text-[18px] font-bold text-brand-dark tracking-tight leading-none dark:text-white">
-            Candour
-          </p>
-          <p className="text-[12px] font-medium text-gray-400 mt-1 truncate">
+      <div className="px-6 pt-8 pb-8 flex flex-col items-start gap-4">
+        <Link href="/dashboard" className="block">
+          <Image 
+            src="/logo.png" 
+            alt="Candour HQ" 
+            width={160} 
+            height={160} 
+            className="h-auto w-32 dark:invert-0" 
+            priority
+          />
+        </Link>
+        <div className="px-1">
+          <p className="text-[12px] font-medium text-gray-400 truncate">
             {activeBrandName}
           </p>
         </div>

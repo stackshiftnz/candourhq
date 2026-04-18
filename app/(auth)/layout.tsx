@@ -1,12 +1,22 @@
+import Image from "next/image";
+import Link from "next/link";
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center px-4">
       {/* Wordmark */}
-      <div className="mb-6 text-center">
-        <p className="text-[22px] font-semibold text-gray-900 dark:text-white tracking-tight">
-          Candour
-        </p>
-        <p className="text-[12px] text-gray-400 dark:text-gray-500 mt-0.5">
+      <div className="mb-8 text-center">
+        <Link href="/">
+          <Image 
+            src="/logo.png" 
+            alt="Candour HQ" 
+            width={120} 
+            height={120} 
+            className="h-auto w-24 mx-auto mb-2 dark:invert-0" // Keep original colors if possible
+            priority
+          />
+        </Link>
+        <p className="text-[12px] text-gray-400 dark:text-gray-500">
           candourhq.com
         </p>
       </div>
