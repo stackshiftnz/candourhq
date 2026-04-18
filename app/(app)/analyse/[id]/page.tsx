@@ -15,6 +15,7 @@ import { useToast } from "@/lib/hooks/useToast";
 import { Tabs } from "@/components/ui/Tabs";
 import { getWordCount } from "@/lib/utils/word-count";
 import { trackEvent } from "@/lib/telemetry/client";
+import { PanelLeftCloseIcon, PanelLeftOpenIcon, PanelRightCloseIcon, PanelRightOpenIcon } from "lucide-react";
 
 type Document = Database["public"]["Tables"]["documents"]["Row"];
 type Diagnosis = Database["public"]["Tables"]["diagnoses"]["Row"];
@@ -36,6 +37,9 @@ export default function DiagnosisPage() {
   const [takingLong, setTakingLong] = useState(false);
   const [analysisState, setAnalysisState] = useState<"loading" | "error" | "done">("loading");
   const [mobileSheetIssue, setMobileSheetIssue] = useState<DiagnosisIssue | null>(null);
+  const [collapsedCols, setCollapsedCols] = useState({ original: false, scores: false, issues: false });
+  const toggleCol = (col: "original" | "scores" | "issues") =>
+    setCollapsedCols((prev) => ({ ...prev, [col]: !prev[col] }));
 
   const pollingStartTime = useRef(Date.now());
   const autoTriggerFired = useRef(false);
@@ -429,38 +433,62 @@ export default function DiagnosisPage() {
           />
         </div>
 
-        {/* COLUMN 1: ORIGINAL (Desktop only or active tab on mobile) */}
+        {/* COLUMN 1: ORIGINAL */}
         <div className={[
-          "flex-1 lg:w-[280px] lg:flex-none lg:border-r border-gray-100 flex flex-col overflow-hidden bg-white",
-          activeTab === "original" ? "flex" : "hidden lg:flex"
+          "lg:border-r border-gray-100 flex flex-col overflow-hidden bg-white transition-all duration-200",
+          activeTab === "original" ? "flex flex-1" : "hidden lg:flex",
+          collapsedCols.original ? "lg:w-[32px] lg:flex-none" : "lg:w-[280px] lg:flex-none"
         ].join(" ")}>
-          <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-            <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Original</h2>
-            <span className="hidden lg:inline text-[12px] text-gray-400 italic">hover to inspect</span>
+          <div className="px-3 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
+            {!collapsedCols.original && (
+              <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Original</h2>
+            )}
+            <button
+              onClick={() => toggleCol("original")}
+              className="hidden lg:flex ml-auto items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              title={collapsedCols.original ? "Expand Original" : "Collapse Original"}
+            >
+              {collapsedCols.original ? <PanelLeftOpenIcon size={14} /> : <PanelLeftCloseIcon size={14} />}
+            </button>
           </div>
-          <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar" ref={originalColumnRef}>
-            <HighlightText 
-              content={doc.original_content || ""} 
-              issues={data.issues}
-              onHighlightClick={scrollToIssue}
-              hoveredIssueId={hoveredIssueId}
-              onHoverIssue={setHoveredIssueId}
-            />
-          </div>
+          {!collapsedCols.original && (
+            <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar" ref={originalColumnRef}>
+              <HighlightText
+                content={doc.original_content || ""}
+                issues={data.issues}
+                onHighlightClick={scrollToIssue}
+                hoveredIssueId={hoveredIssueId}
+                onHoverIssue={setHoveredIssueId}
+              />
+            </div>
+          )}
         </div>
 
-        {/* COLUMN 2: SCORES (Desktop only or active tab on mobile) */}
+        {/* COLUMN 2: SCORES */}
         <div className={[
-          "flex-1 lg:w-[320px] lg:flex-none lg:border-r border-gray-100 flex flex-col overflow-hidden bg-gray-50",
-          activeTab === "scores" ? "flex" : "hidden lg:flex"
+          "lg:border-r border-gray-100 flex flex-col overflow-hidden bg-gray-50 transition-all duration-200",
+          activeTab === "scores" ? "flex flex-1" : "hidden lg:flex",
+          collapsedCols.scores ? "lg:w-[32px] lg:flex-none" : "lg:w-[320px] lg:flex-none"
         ].join(" ")}>
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
-            <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Analysis</h2>
-            <div className="flex items-center gap-1">
-              <span className="text-[15px] font-bold text-gray-900">{diagnosis.average_score_original}</span>
-              <span className="text-[12px] text-gray-400">/10</span>
-            </div>
+          <div className="px-3 py-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
+            {!collapsedCols.scores && (
+              <>
+                <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Analysis</h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-[15px] font-bold text-gray-900">{diagnosis.average_score_original}</span>
+                  <span className="text-[12px] text-gray-400">/10</span>
+                </div>
+              </>
+            )}
+            <button
+              onClick={() => toggleCol("scores")}
+              className="hidden lg:flex ml-auto items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              title={collapsedCols.scores ? "Expand Analysis" : "Collapse Analysis"}
+            >
+              {collapsedCols.scores ? <PanelLeftOpenIcon size={14} /> : <PanelLeftCloseIcon size={14} />}
+            </button>
           </div>
+          {!collapsedCols.scores && (
           <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar">
             {/* Headline Finding Card */}
             <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 shadow-sm">
@@ -495,17 +523,32 @@ export default function DiagnosisPage() {
               })}
             </div>
           </div>
+          )}
         </div>
 
-        {/* COLUMN 3: ISSUES (Desktop only or active tab on mobile) */}
+        {/* COLUMN 3: ISSUES */}
         <div className={[
-          "flex-1 flex flex-col overflow-hidden bg-white",
-          activeTab === "issues" ? "flex" : "hidden lg:flex"
+          "flex flex-col overflow-hidden bg-white transition-all duration-200",
+          activeTab === "issues" ? "flex flex-1" : "hidden lg:flex",
+          collapsedCols.issues ? "lg:w-[32px] lg:flex-none" : "lg:flex-1"
         ].join(" ")}>
-          <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-            <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Issues</h2>
-            <span className="text-[12px] text-gray-400 font-medium">{data.issues.length} flagged</span>
+          <div className="px-3 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
+            {!collapsedCols.issues && (
+              <>
+                <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Issues</h2>
+                <span className="text-[12px] text-gray-400 font-medium">{data.issues.length} flagged</span>
+              </>
+            )}
+            <button
+              onClick={() => toggleCol("issues")}
+              className="hidden lg:flex ml-auto items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              title={collapsedCols.issues ? "Expand Issues" : "Collapse Issues"}
+            >
+              {collapsedCols.issues ? <PanelRightOpenIcon size={14} /> : <PanelRightCloseIcon size={14} />}
+            </button>
           </div>
+          {!collapsedCols.issues && (
+          <>
           <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar" ref={issuesColumnRef}>
             {issueCount === 0 ? (
               <div className="flex flex-col items-center justify-center text-center py-12 px-4">
@@ -553,6 +596,8 @@ export default function DiagnosisPage() {
               {issueCount === 0 ? "Skip to export" : "Start clean-up"}
             </Button>
           </div>
+          </>
+          )}
         </div>
 
       </div>

@@ -16,7 +16,7 @@ import { ExplanationDrawer } from "@/components/cleanup/ExplanationDrawer";
 import { HighlightText } from "@/components/analyse/HighlightText";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
-import { ArrowRightIcon, HistoryIcon, UserIcon, CheckCircle2Icon, InfoIcon, ClockIcon } from "lucide-react";
+import { ArrowRightIcon, HistoryIcon, UserIcon, CheckCircle2Icon, InfoIcon, ClockIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PanelRightCloseIcon, PanelRightOpenIcon } from "lucide-react";
 import { submitForApproval } from "@/app/actions/team";
 import { useToast } from "@/lib/hooks/useToast";
 import { trackEvent } from "@/lib/telemetry/client";
@@ -43,9 +43,13 @@ export default function CleanupPage() {
   const [cleanupTimedOut, setCleanupTimedOut] = useState(false);
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [viewMode, setViewMode] = useState<"changes" | "diff">("changes");
+  const [collapsedCols, setCollapsedCols] = useState({ original: false, queue: false });
+  const toggleCol = (col: "original" | "queue") =>
+    setCollapsedCols((prev) => ({ ...prev, [col]: !prev[col] }));
   const [streamingParagraphs, setStreamingParagraphs] = useState<ParagraphType[]>([]);
   const [streamRunning, setStreamRunning] = useState(false);
   const streamStartedRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [pollingElapsed, setPollingElapsed] = useState(0);
   const cleanupPollingStart = useRef(Date.now());
 
@@ -145,10 +149,17 @@ export default function CleanupPage() {
       setPollingElapsed(elapsed);
       if (elapsed > cleanupTimeoutMs) {
         clearInterval(interval);
+        abortControllerRef.current?.abort();
+        setPolling(false);
+        setLoading(false);
+        setStreamRunning(false);
+        setCleanupTimedOut(true);
+        toast("Clean-up timed out. Please try again from the diagnosis screen.", "error");
+        void supabase.from("documents").update({ status: "diagnosed" }).eq("id", id);
       }
     }, 500);
     return () => clearInterval(interval);
-  }, [polling, cleanupTimeoutMs]);
+  }, [polling, cleanupTimeoutMs, id, supabase, toast]);
 
   // Streaming clean-up: POSTs to /api/clean and reads Server-Sent Events.
   // Each "paragraph" event appends to streamingParagraphs so the Cleaned
@@ -160,6 +171,7 @@ export default function CleanupPage() {
     streamStartedRef.current = true;
 
     const controller = new AbortController();
+    abortControllerRef.current = controller;
     let cancelled = false;
 
     (async () => {
@@ -181,12 +193,7 @@ export default function CleanupPage() {
         const decoder = new TextDecoder();
         let buffer = "";
 
-        while (!cancelled) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-
-          // Parse complete SSE frames (separated by blank lines).
+        const processBuffer = async () => {
           let frameEnd: number;
           while ((frameEnd = buffer.indexOf("\n\n")) !== -1) {
             const frame = buffer.slice(0, frameEnd);
@@ -221,18 +228,35 @@ export default function CleanupPage() {
                 setPolling(false);
                 setLoading(false);
                 setStreamRunning(false);
-                return;
+                return true; // signal completion
               } else if (eventName === "error") {
                 throw new Error(payload.error || "Clean-up failed.");
               }
             } catch (parseErr) {
+              // Re-throw real errors; skip JSON parse failures on non-data frames
+              if (parseErr instanceof Error && parseErr.message !== "Clean-up failed." && !parseErr.message.startsWith("JSON")) {
+                throw parseErr;
+              }
               console.error("[clean-stream] parse error", parseErr, dataLine);
             }
           }
+          return false;
+        };
+
+        while (!cancelled) {
+          const { value, done } = await reader.read();
+          // Always decode — include final flush when done
+          if (value) buffer += decoder.decode(value, { stream: !done });
+
+          // Parse complete SSE frames (separated by blank lines).
+          const completed = await processBuffer();
+          if (completed) return;
+
+          if (done) break;
         }
       } catch (err) {
         if (cancelled) return;
-        console.error("[clean-stream] aborted", err);
+        console.error("[clean-stream] error", err);
         setPolling(false);
         setLoading(false);
         setStreamRunning(false);
@@ -245,6 +269,7 @@ export default function CleanupPage() {
     return () => {
       cancelled = true;
       controller.abort();
+      abortControllerRef.current = null;
     };
   }, [polling, id, supabase, toast]);
 
@@ -901,22 +926,31 @@ export default function CleanupPage() {
         </div>
 
         {/* Column 1: Original (Desktop) */}
-        <div className={`hidden md:flex flex-col w-[260px] border-right border-gray-100 bg-white shrink-0 overflow-hidden`}>
-          <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-            <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">Original</h2>
-            <span className="text-[12px] text-gray-300 font-medium">Hover to inspect</span>
+        <div className={`hidden md:flex flex-col border-r border-gray-100 bg-white shrink-0 overflow-hidden transition-all duration-200 ${collapsedCols.original ? "w-[32px]" : "w-[260px]"}`}>
+          <div className="px-3 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
+            {!collapsedCols.original && (
+              <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">Original</h2>
+            )}
+            <button
+              onClick={() => toggleCol("original")}
+              className="ml-auto flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              title={collapsedCols.original ? "Expand Original" : "Collapse Original"}
+            >
+              {collapsedCols.original ? <PanelLeftOpenIcon size={14} /> : <PanelLeftCloseIcon size={14} />}
+            </button>
           </div>
+          {!collapsedCols.original && (
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar opacity-60">
-            <HighlightText 
-              content={doc.original_content} 
-              issues={diagnosis.issues} 
+            <HighlightText
+              content={doc.original_content}
+              issues={diagnosis.issues}
               resolvedIssueIds={resolvedIssueIds}
               onHighlightClick={(issueId) => {
                 const parts = issueId.split("-");
                 if (parts.length >= 3) {
-                  const issue = diagnosis.issues.find(i => 
-                    i.priority === parts[0] && 
-                    i.char_start === parseInt(parts[1]) && 
+                  const issue = diagnosis.issues.find(i =>
+                    i.priority === parts[0] &&
+                    i.char_start === parseInt(parts[1]) &&
                     i.char_end === parseInt(parts[2])
                   );
                   if (issue) {
@@ -928,6 +962,7 @@ export default function CleanupPage() {
               }}
             />
           </div>
+          )}
         </div>
 
         {/* Column 2: Cleaned Version (Main) */}
@@ -993,8 +1028,21 @@ export default function CleanupPage() {
         </div>
 
         {/* Column 3: Queue (Desktop) */}
-        <div className={`hidden lg:block w-[280px] shrink-0 ${activeTab === "queue" ? "block" : "hidden lg:block"}`}>
-          <IssueQueue 
+        <div className={`hidden lg:flex flex-col shrink-0 overflow-hidden transition-all duration-200 ${collapsedCols.queue ? "w-[32px]" : "w-[280px]"}`}>
+          <div className="px-3 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
+            {!collapsedCols.queue && (
+              <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">Queue</h2>
+            )}
+            <button
+              onClick={() => toggleCol("queue")}
+              className="ml-auto flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              title={collapsedCols.queue ? "Expand Queue" : "Collapse Queue"}
+            >
+              {collapsedCols.queue ? <PanelRightOpenIcon size={14} /> : <PanelRightCloseIcon size={14} />}
+            </button>
+          </div>
+          {!collapsedCols.queue && (
+          <IssueQueue
             issues={diagnosis.issues}
             resolvedIssueIndices={resolvedIssueIndices}
             activeIndex={-1}
@@ -1006,6 +1054,7 @@ export default function CleanupPage() {
               }
             }}
           />
+          )}
         </div>
 
         </>

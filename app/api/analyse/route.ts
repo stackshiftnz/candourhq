@@ -11,6 +11,35 @@ import type { TextBlockParam } from "@anthropic-ai/sdk/resources/messages";
 
 export const maxDuration = 60;
 
+function correctIssuePosition(
+  content: string,
+  phrase: string,
+  charStart: number,
+  charEnd: number
+): { char_start: number; char_end: number } {
+  // 1. Already correct (0-indexed, exclusive end)
+  if (content.slice(charStart, charEnd) === phrase) {
+    return { char_start: charStart, char_end: charEnd };
+  }
+  // 2. Model returned inclusive end
+  if (content.slice(charStart, charEnd + 1) === phrase) {
+    return { char_start: charStart, char_end: charEnd + 1 };
+  }
+  // 3. Search near model's suggested area (handles small position drift)
+  const searchFrom = Math.max(0, charStart - 150);
+  const nearbyIdx = content.indexOf(phrase, searchFrom);
+  if (nearbyIdx !== -1 && nearbyIdx <= charEnd + 150) {
+    return { char_start: nearbyIdx, char_end: nearbyIdx + phrase.length };
+  }
+  // 4. Full-text fallback
+  const globalIdx = content.indexOf(phrase);
+  if (globalIdx !== -1) {
+    return { char_start: globalIdx, char_end: globalIdx + phrase.length };
+  }
+  // 5. Phrase not found — return originals (segment won't highlight but won't crash)
+  return { char_start: charStart, char_end: charEnd };
+}
+
 export async function POST(req: Request) {
   const supabase = createClient();
   let documentId: string | null = null;
@@ -148,13 +177,24 @@ export async function POST(req: Request) {
     const priorityOrder = { trust: 0, substance: 1, style: 2 };
     diagnosis.issues.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
-    // Attach deterministic issue_id to every issue. The ID format matches the
-    // existing UI-side convention (`${priority}-${char_start}-${char_end}`) so
-    // HighlightText and issue-card components can use it without changes.
-    diagnosis.issues = diagnosis.issues.map((issue) => ({
-      ...issue,
-      issue_id: `${issue.priority}-${issue.char_start}-${issue.char_end}`,
-    }));
+    // Correct char positions and attach deterministic issue_id.
+    // Models frequently return slightly drifted positions; correctIssuePosition
+    // verifies each phrase against the actual content and fixes the offsets so
+    // HighlightText always marks the exact span.
+    diagnosis.issues = diagnosis.issues.map((issue) => {
+      const corrected = correctIssuePosition(
+        document.original_content,
+        issue.phrase,
+        issue.char_start,
+        issue.char_end
+      );
+      return {
+        ...issue,
+        char_start: corrected.char_start,
+        char_end: corrected.char_end,
+        issue_id: `${issue.priority}-${corrected.char_start}-${corrected.char_end}`,
+      };
+    });
 
     // 7. Write diagnoses record (upsert guards against concurrent duplicate requests)
     const { error: diagInsertError } = await supabase

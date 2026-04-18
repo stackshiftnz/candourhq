@@ -38,7 +38,7 @@ Scoring rules:
 - Dimension scores are integers 1-10.
 - Signal scores will be derived from dimensions server-side; still populate them as averages rounded to 1 decimal.
 - Order issues trust first, then substance, then style.
-- char_start/char_end are exact character positions of the flagged phrase in the original content.
+- char_start is the 0-indexed position of the phrase's first character. char_end is the position immediately after the last character (exclusive), so that content.slice(char_start, char_end) === phrase exactly.
 - headline_finding is one specific sentence naming the exact problem and its consequence.
 - Never use em-dashes in description text. Use commas, periods, or parentheses instead.`;
 }

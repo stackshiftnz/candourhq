@@ -95,6 +95,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Document not found." }, { status: 404 });
   }
 
+  if (document.status !== "diagnosed") {
+    return NextResponse.json(
+      { error: "Document is not ready for clean-up. Please run diagnosis first." },
+      { status: 409 }
+    );
+  }
+
   const { data: diagnosis, error: diagError } = await supabase
     .from("diagnoses")
     .select("*")
@@ -176,6 +183,8 @@ export async function POST(req: Request) {
           closed = true;
         }
       };
+
+      const heartbeat = setInterval(() => send("ping", { t: Date.now() }), 15_000);
 
       try {
         await supabase.from("documents").update({ status: "cleaning" }).eq("id", docId);
@@ -263,16 +272,19 @@ export async function POST(req: Request) {
 
         const { data: nextCleanup, error: cleanupInsertError } = await supabase
           .from("cleanups")
-          .insert({
-            document_id: docId,
-            diagnosis_id: diagnosis.id,
-            paragraphs: cleanupData.paragraphs as unknown as CleanupParagraph[],
-            issues_total: issuesTotal,
-            issues_resolved: issuesResolved,
-            pause_cards_total: pauseCardsTotal,
-            pause_cards_answered: 0,
-            brand_profile_snapshot: brandSnapshotPayload,
-          })
+          .upsert(
+            {
+              document_id: docId,
+              diagnosis_id: diagnosis.id,
+              paragraphs: cleanupData.paragraphs as unknown as CleanupParagraph[],
+              issues_total: issuesTotal,
+              issues_resolved: issuesResolved,
+              pause_cards_total: pauseCardsTotal,
+              pause_cards_answered: 0,
+              brand_profile_snapshot: brandSnapshotPayload,
+            },
+            { onConflict: "document_id" }
+          )
           .select()
           .single();
 
@@ -302,6 +314,7 @@ export async function POST(req: Request) {
         }
         send("error", { error: errMessage || "Clean-up failed. Please try again." });
       } finally {
+        clearInterval(heartbeat);
         closed = true;
         try {
           controller.close();
