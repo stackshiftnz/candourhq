@@ -10,7 +10,7 @@ import { recordApiEvent } from "@/lib/telemetry/record";
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  const supabase = createClient();
+  const supabase = await createClient();
   let documentId: string | null = null;
 
   try {
@@ -46,6 +46,12 @@ export async function POST(req: Request) {
       .single();
 
     if (cleanError || !cleanup || !cleanup.final_content) {
+      console.warn("[RESCORE] Cleanup check failed:", { 
+        documentId,
+        cleanError, 
+        hasCleanup: !!cleanup, 
+        hasFinalContent: !!cleanup?.final_content 
+      });
       return NextResponse.json(
         { error: "Document clean-up is not complete." },
         { status: 400 }

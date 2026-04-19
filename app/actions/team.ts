@@ -10,7 +10,7 @@ export async function inviteTeamMember(
   email: string,
   role: string
 ): Promise<{ success: boolean; error?: string; duplicate?: boolean }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -83,7 +83,7 @@ export async function inviteTeamMember(
 export async function cancelInvite(
   inviteId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -103,7 +103,7 @@ export async function cancelInvite(
 export async function removeMember(
   memberId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -123,7 +123,7 @@ export async function removeMember(
 export async function approveDocument(
   documentId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -148,7 +148,7 @@ export async function requestChanges(
   documentId: string,
   note: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -177,7 +177,7 @@ export async function updateWorkspaceSettings(
     notify_on_submission?: boolean;
   }
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -197,7 +197,7 @@ export async function updateWorkspaceSettings(
 export async function submitForApproval(
   documentId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

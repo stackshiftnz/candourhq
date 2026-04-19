@@ -19,7 +19,7 @@ const SYSTEM_PROMPT = "You are classifying a piece of business content. Based on
 
 export async function POST(req: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     // Security: ensure user is authenticated

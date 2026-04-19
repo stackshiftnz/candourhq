@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeTag } from "@/lib/anthropic/types";
-import { XIcon } from "lucide-react";
+import { X } from "lucide-react";
 
 interface ExplanationDrawerProps {
   isOpen: boolean;
@@ -33,7 +33,7 @@ export function ExplanationDrawer({ isOpen, onClose, tag }: ExplanationDrawerPro
             onClick={onClose}
             className="w-11 h-11 flex items-center justify-center hover:bg-gray-100 rounded-md transition-colors text-gray-400 hover:text-gray-900 -mr-2"
           >
-            <XIcon size={18} className="pointer-events-none" />
+            <X size={18} className="pointer-events-none" />
           </button>
         </div>
 

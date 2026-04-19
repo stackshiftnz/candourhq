@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server-user";
 export async function skipOnboarding(
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Verify the caller matches the authenticated session — never trust a
   // client-supplied userId without server-side confirmation.
@@ -57,7 +57,7 @@ export async function saveProfile(
     writingExamples: string[];
   }
 ): Promise<{ success: boolean; profileId?: string; error?: string }> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },

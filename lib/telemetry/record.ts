@@ -18,7 +18,7 @@ type RecordArgs = {
 
 export async function recordApiEvent(args: RecordArgs): Promise<void> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const usage = args.usage as
       | (Message["usage"] & {
           cache_read_input_tokens?: number;

@@ -8,7 +8,7 @@ export async function logSampleEvent(
   eventType: string,
   metadata?: SampleEventMetadata
 ): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Verify caller matches session
   const {

@@ -5,7 +5,7 @@ import type { DiagnosisResponse } from "@/lib/anthropic/types";
 import { SamplePageClient } from "@/components/sample/SamplePageClient";
 
 export default async function SamplePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Auth check
   const {

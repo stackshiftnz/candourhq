@@ -3,14 +3,15 @@ import { notFound } from "next/navigation";
 import ExportContent from "@/components/export/ExportContent";
 
 interface ExportPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default async function ExportPage({ params }: ExportPageProps) {
+export default async function ExportPage(props: ExportPageProps) {
+  const params = await props.params;
   const { id } = params;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 1. Fetch document, diagnosis, and cleanup
   const { data: document, error: docError } = await supabase

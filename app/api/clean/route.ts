@@ -10,20 +10,24 @@ import type { TextBlockParam } from "@anthropic-ai/sdk/resources/messages";
 
 export const maxDuration = 300;
 
-// Scans the streaming tool-input JSON buffer and returns every paragraph object
-// whose closing brace has already arrived. Partial trailing paragraphs are
-// intentionally skipped; they'll appear on the next delta. Handles escaped
-// characters and strings so braces inside content don't derail depth tracking.
-function extractCompleteParagraphs(buffer: string): CleanupParagraph[] {
+// Tracks our position in the tool-input JSON stream so we don't re-parse 
+// already-emitted paragraphs. This avoids O(N^2) CPU cost on large buffers.
+function extractNewParagraphs(buffer: string, startIndex: number): { paragraphs: CleanupParagraph[], nextIndex: number } {
   const marker = '"paragraphs":[';
-  const startIdx = buffer.indexOf(marker);
-  if (startIdx === -1) return [];
+  let currentPos = buffer.indexOf(marker);
+  if (currentPos === -1) return { paragraphs: [], nextIndex: startIndex };
+  
+  // Jump to the first potentially unparsed character
+  currentPos = Math.max(currentPos + marker.length, startIndex);
+  
   const results: CleanupParagraph[] = [];
-  let i = startIdx + marker.length;
+  let i = currentPos;
   let depth = 0;
   let inString = false;
   let escape = false;
   let paragraphStart = -1;
+  let lastValidIndex = startIndex;
+
   while (i < buffer.length) {
     const ch = buffer[i];
     if (escape) {
@@ -42,8 +46,10 @@ function extractCompleteParagraphs(buffer: string): CleanupParagraph[] {
           const chunk = buffer.slice(paragraphStart, i + 1);
           try {
             results.push(JSON.parse(chunk) as CleanupParagraph);
+            lastValidIndex = i + 1;
           } catch {
-            return results;
+            // Partial JSON, stop here and wait for more data
+            return { paragraphs: results, nextIndex: lastValidIndex };
           }
           paragraphStart = -1;
         }
@@ -53,18 +59,18 @@ function extractCompleteParagraphs(buffer: string): CleanupParagraph[] {
     }
     i++;
   }
-  return results;
+  return { paragraphs: results, nextIndex: lastValidIndex };
 }
 
 export async function POST(req: Request) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const rateLimit = checkRateLimit(session.user.id, 10, 60000);
+  const rateLimit = checkRateLimit(user.id, 10, 60000);
   if (!rateLimit.success) {
     return NextResponse.json(
       { error: "Rate limit exceeded. Please try again later." },
@@ -95,7 +101,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Document not found." }, { status: 404 });
   }
 
-  if (document.status !== "diagnosed") {
+  if (document.status !== "diagnosed" && document.status !== "cleaning") {
     return NextResponse.json(
       { error: "Document is not ready for clean-up. Please run diagnosis first." },
       { status: 409 }
@@ -122,7 +128,7 @@ export async function POST(req: Request) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("default_brand_profile_id")
-      .eq("id", session.user.id)
+      .eq("id", user.id)
       .single();
     brandProfileId = profile?.default_brand_profile_id;
   }
@@ -157,7 +163,7 @@ export async function POST(req: Request) {
   };
 
   const encoder = new TextEncoder();
-  const userId = session.user.id;
+  const userId = user.id;
   const docId = documentId;
   const brandSnapshotPayload = brandProfile
     ? {
@@ -193,7 +199,7 @@ export async function POST(req: Request) {
         const anthropicStart = Date.now();
         const msgStream = anthropic.messages.stream({
           model: "claude-sonnet-4-6",
-          max_tokens: 6000,
+          max_tokens: 20000,
           system: [systemBlock],
           tools: [cleanupTool],
           tool_choice: { type: "tool", name: CLEANUP_TOOL_NAME },
@@ -201,6 +207,7 @@ export async function POST(req: Request) {
         });
 
         let jsonBuffer = "";
+        let parseIndex = 0;
         let emitted = 0;
 
         for await (const event of msgStream) {
@@ -209,11 +216,13 @@ export async function POST(req: Request) {
             event.delta.type === "input_json_delta"
           ) {
             jsonBuffer += event.delta.partial_json;
-            const paragraphs = extractCompleteParagraphs(jsonBuffer);
-            while (emitted < paragraphs.length) {
-              send("paragraph", { index: emitted, paragraph: paragraphs[emitted] });
+            const { paragraphs, nextIndex } = extractNewParagraphs(jsonBuffer, parseIndex);
+            parseIndex = nextIndex;
+            
+            paragraphs.forEach((p) => {
+              send("paragraph", { index: emitted, paragraph: p });
               emitted++;
-            }
+            });
           }
         }
 
@@ -243,7 +252,7 @@ export async function POST(req: Request) {
           .trim()
           .split(/\n\s*\n/)
           .filter((p: string) => p.trim());
-        const cleanedParagraphs = cleanupData.paragraphs;
+        const cleanedParagraphs = cleanupData?.paragraphs || [];
         if (cleanedParagraphs.length !== originalParagraphs.length) {
           console.warn(
             `Paragraph count mismatch: original=${originalParagraphs.length}, cleaned=${cleanedParagraphs.length}`
@@ -253,7 +262,8 @@ export async function POST(req: Request) {
         const issuesTotal = (diagnosis.issues as unknown as DiagnosisIssue[] || []).length;
         const resolvedIssueIds = new Set<string>();
         let pauseCardsTotal = 0;
-        cleanupData.paragraphs.forEach((p) => {
+        const paragraphsArray = cleanupData?.paragraphs || [];
+        paragraphsArray.forEach((p) => {
           if (p.type === "clean") {
             p.changes?.forEach((c) => {
               if (c.issue_id) resolvedIssueIds.add(c.issue_id);
@@ -265,7 +275,7 @@ export async function POST(req: Request) {
         const issuesResolved =
           resolvedIssueIds.size > 0
             ? resolvedIssueIds.size
-            : cleanupData.paragraphs.reduce(
+            : paragraphsArray.reduce(
                 (sum, p) => sum + (p.type === "clean" ? (p.changes?.length || 0) : 0),
                 0
               );
@@ -276,12 +286,11 @@ export async function POST(req: Request) {
             {
               document_id: docId,
               diagnosis_id: diagnosis.id,
-              paragraphs: cleanupData.paragraphs as unknown as CleanupParagraph[],
+              paragraphs: paragraphsArray as unknown as CleanupParagraph[],
               issues_total: issuesTotal,
               issues_resolved: issuesResolved,
               pause_cards_total: pauseCardsTotal,
               pause_cards_answered: 0,
-              brand_profile_snapshot: brandSnapshotPayload,
             },
             { onConflict: "document_id" }
           )
@@ -294,32 +303,38 @@ export async function POST(req: Request) {
 
         send("complete", {
           id: nextCleanup.id,
-          paragraphs: cleanupData.paragraphs,
+          paragraphs: paragraphsArray,
           issues_total: issuesTotal,
           issues_resolved: issuesResolved,
           pause_cards_total: pauseCardsTotal,
         });
-      } catch (error: unknown) {
-        const errMessage = error instanceof Error ? error.message : String(error);
-        const errStatus = (error as { status?: number }).status ?? "unknown";
-        console.error("[CHQ-CLEAN] Stream error:", {
+      } catch (error: any) {
+        const errMessage = error instanceof Error ? error.message : JSON.stringify(error);
+        const errStatus = error?.status ?? "unknown";
+        console.error("[CHQ-CLEAN] Stream failure:", {
           message: errMessage,
           status: errStatus,
           model: "claude-sonnet-4-6",
+          docId
         });
+        
         try {
           await supabase.from("documents").update({ status: "diagnosed" }).eq("id", docId);
-        } catch {
-          // Non-fatal — we still want to surface the stream error to the client.
+        } catch (dbErr) {
+          console.error("[CHQ-CLEAN] Status reset failed:", dbErr);
         }
-        send("error", { error: errMessage || "Clean-up failed. Please try again." });
+        
+        send("error", { 
+          error: errMessage || "Clean-up failed unexpectedly.",
+          details: error instanceof Error ? error.stack?.slice(0, 200) : "No stack trace available"
+        });
       } finally {
         clearInterval(heartbeat);
         closed = true;
         try {
           controller.close();
         } catch {
-          // Already closed
+          // Stream already closed
         }
       }
     },

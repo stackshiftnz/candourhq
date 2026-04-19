@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useState, useCallback, ReactNode } from "react";
-import { XIcon } from "lucide-react";
+import { X } from "lucide-react";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
@@ -81,7 +81,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               className="flex-shrink-0 text-gray-400 hover:text-gray-900 transition-colors p-1 -m-1"
               aria-label="Close"
             >
-              <XIcon size={14} />
+              <X size={14} />
             </button>
           </div>
         ))}

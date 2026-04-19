@@ -6,22 +6,22 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  LayoutDashboardIcon,
-  FilePlusIcon,
-  HistoryIcon,
-  PaletteIcon,
-  Settings2Icon,
-  LogOutIcon,
+  ChevronLeft,
+  ChevronRight,
+  LayoutDashboard,
+  FilePlus,
+  History,
+  Palette,
+  Settings2,
+  LogOut,
 } from "lucide-react";
 
 const navItems = [
-  { label: "Dashboard",      href: "/dashboard",     icon: LayoutDashboardIcon },
-  { label: "New document",   href: "/new",            icon: FilePlusIcon },
-  { label: "History",        href: "/history",        icon: HistoryIcon },
-  { label: "Brand profiles", href: "/settings/brand", icon: PaletteIcon },
-  { label: "Settings",       href: "/settings/team",  icon: Settings2Icon },
+  { label: "Dashboard",      href: "/dashboard",     icon: LayoutDashboard },
+  { label: "New document",   href: "/new",            icon: FilePlus },
+  { label: "History",        href: "/history",        icon: History },
+  { label: "Brand profiles", href: "/settings/brand", icon: Palette },
+  { label: "Settings",       href: "/settings/team",  icon: Settings2 },
 ];
 
 export function Sidebar() {
@@ -102,7 +102,7 @@ export function Sidebar() {
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {isCollapsed ? <ChevronRightIcon size={15} /> : <ChevronLeftIcon size={15} />}
+          {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
         </button>
       </div>
 
@@ -164,7 +164,7 @@ export function Sidebar() {
               className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors dark:hover:bg-gray-800"
               title="Sign out"
             >
-              <LogOutIcon size={15} />
+              <LogOut size={15} />
             </button>
           </div>
         </div>
@@ -178,7 +178,7 @@ export function Sidebar() {
             className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-black/5 transition-colors"
             title="Sign out"
           >
-            <LogOutIcon size={15} />
+            <LogOut size={15} />
           </button>
         </div>
       )}

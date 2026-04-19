@@ -6,7 +6,7 @@ import { CleanupParagraph } from "@/lib/anthropic/types";
 import { UserEdit, Database } from "@/types/database";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
-import { XIcon, RotateCcwIcon, SparklesIcon, PencilIcon, HelpCircleIcon, SkipForwardIcon, CheckCheckIcon, type LucideIcon } from "lucide-react";
+import { X, RotateCcw, Sparkles, Pencil, HelpCircle, SkipForward, CheckCheck, type LucideIcon } from "lucide-react";
 
 type Revision = Database["public"]["Tables"]["cleanup_revisions"]["Row"];
 
@@ -27,12 +27,12 @@ const EVENT_LABELS: Record<string, string> = {
 };
 
 const EVENT_ICONS: Record<string, LucideIcon> = {
-  ai_initial: SparklesIcon,
-  user_edit: PencilIcon,
-  pause_resolved: HelpCircleIcon,
-  pause_skipped: SkipForwardIcon,
-  revert: RotateCcwIcon,
-  accept_remaining: CheckCheckIcon,
+  ai_initial: Sparkles,
+  user_edit: Pencil,
+  pause_resolved: HelpCircle,
+  pause_skipped: SkipForward,
+  revert: RotateCcw,
+  accept_remaining: CheckCheck,
 };
 
 function formatRelative(iso: string): string {
@@ -101,7 +101,7 @@ export function RevisionHistoryDrawer({ cleanupId, open, onClose, onRestore }: R
             className="text-gray-400 hover:text-gray-900 p-2 -m-2 rounded-md"
             aria-label="Close revision history"
           >
-            <XIcon size={18} />
+            <X size={18} />
           </button>
         </header>
 
@@ -115,7 +115,7 @@ export function RevisionHistoryDrawer({ cleanupId, open, onClose, onRestore }: R
           ) : (
             <ul className="divide-y divide-gray-100">
               {revisions.map((rev, i) => {
-                const Icon = EVENT_ICONS[rev.event_type] || PencilIcon;
+                const Icon = EVENT_ICONS[rev.event_type] || Pencil;
                 const isLatest = i === 0;
                 return (
                   <li key={rev.id} className="px-5 py-4 flex items-start gap-3">

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { CleanupParagraph as CleanupParagraphType, ChangeTag } from "@/lib/anthropic/types";
 import { PauseCard } from "./PauseCard";
-import { PencilIcon, Undo2Icon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { Pencil, Undo2, Eye, EyeOff } from "lucide-react";
 
 interface CleanupParagraphProps {
   paragraph: CleanupParagraphType;
@@ -76,7 +76,7 @@ export function CleanupParagraph({
     >
       {hasUserEdit && (
         <div className="absolute -left-6 top-1 text-gray-300" title="Manually edited">
-          <PencilIcon size={14} />
+          <Pencil size={14} />
         </div>
       )}
       <div className="absolute -top-1 right-0 flex items-center gap-1">
@@ -88,7 +88,7 @@ export function CleanupParagraph({
             aria-label={showOriginal ? "Hide the original paragraph" : "Show the original paragraph"}
             aria-expanded={showOriginal}
           >
-            {showOriginal ? <EyeOffIcon size={11} aria-hidden="true" /> : <EyeIcon size={11} aria-hidden="true" />}
+            {showOriginal ? <EyeOff size={11} aria-hidden="true" /> : <Eye size={11} aria-hidden="true" />}
             {showOriginal ? "Hide original" : "Show original"}
           </button>
         )}
@@ -99,7 +99,7 @@ export function CleanupParagraph({
             title="Revert to Candour's cleaned version"
             aria-label={`Revert paragraph ${index + 1} to the Candour-cleaned version`}
           >
-            <Undo2Icon size={11} aria-hidden="true" />
+            <Undo2 size={11} aria-hidden="true" />
             Revert to AI version
           </button>
         )}

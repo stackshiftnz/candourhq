@@ -1,20 +1,34 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-html {
-  font-size: 16px;
+@theme {
+  --color-brand-dark: #181818;
+  --color-brand-yellow: #ffd480;
+  --color-brand-pink: #ff9393;
+  --color-brand-green: #c8ccc2;
+  --color-brand-cream: #fbfaf8;
+
+  --font-sans: "SF Pro Display", -apple-system, sans-serif;
 }
 
-body {
-  line-height: 1.7;
+/* Custom base styles */
+@layer base {
+  html {
+    font-size: 16px;
+  }
+
+  body {
+    line-height: 1.7;
+    @apply font-sans;
+  }
 }
 
-/* Hide scrollbar while keeping scroll functionality */
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+/* Custom utility styles */
+@layer utilities {
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }

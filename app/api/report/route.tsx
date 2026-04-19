@@ -106,10 +106,11 @@ export async function GET(req: NextRequest) {
     const documentId = searchParams.get("documentId");
 
     if (!type || !documentId) {
+      console.warn("[REPORT] Missing parameters:", { type, documentId });
       return new NextResponse("Missing parameters", { status: 400 });
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 1. Fetch document, diagnosis, cleanup, profiling
     // Use .order().limit(1) to be resilient against duplicate records during development/failure states
@@ -133,7 +134,12 @@ export async function GET(req: NextRequest) {
       .single();
 
     if (cleanError || !cleanup || !cleanup.final_content) {
-      console.error("[REPORT] Cleanup fetch error:", cleanError);
+      console.error("[REPORT] Cleanup check failed:", {
+        documentId,
+        cleanError,
+        hasCleanup: !!cleanup,
+        hasFinalContent: !!cleanup?.final_content
+      });
       return new NextResponse("Document not cleaned up yet", { status: 400 });
     }
 

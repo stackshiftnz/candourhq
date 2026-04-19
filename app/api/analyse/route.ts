@@ -41,7 +41,7 @@ function correctIssuePosition(
 }
 
 export async function POST(req: Request) {
-  const supabase = createClient();
+  const supabase = await createClient();
   let documentId: string | null = null;
 
   try {
@@ -243,8 +243,8 @@ export async function POST(req: Request) {
       model: "claude-sonnet-4-6",
     });
     if (documentId) {
-      const errorSupabase = createClient();
-      await errorSupabase.from("documents").update({ status: "pending" }).eq("id", documentId);
+      const supabase = await createClient();
+      await supabase.from("documents").update({ status: "pending" }).eq("id", documentId);
     }
     return NextResponse.json(
       { error: "Analysis failed. Your content has been saved — try again from History." },

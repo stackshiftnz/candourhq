@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server-user";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { LockIcon } from "lucide-react";
+import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
   TeamWorkspaceClient,
@@ -19,7 +19,7 @@ type DocumentRow = Database["public"]["Tables"]["documents"]["Row"];
 type DiagnosisRow = Database["public"]["Tables"]["diagnoses"]["Row"];
 
 export default async function TeamSettingsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },
@@ -295,7 +295,7 @@ function PlanGate({
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="max-w-sm w-full text-center space-y-4">
           <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto">
-            <LockIcon size={20} className="text-gray-400" />
+            <Lock size={20} className="text-gray-400" />
           </div>
           <h2 className="text-[17px] font-medium text-gray-900">
             Team features are available on the Team plan

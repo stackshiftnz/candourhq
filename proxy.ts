@@ -26,7 +26,7 @@ const AUTH_ONLY_ROUTES = ['/signin', '/signup']
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Start with a plain pass-through response so we can forward cookies.
   let supabaseResponse = NextResponse.next({ request })
 

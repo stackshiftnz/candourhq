@@ -3,15 +3,14 @@ import { notFound, redirect } from "next/navigation";
 import { BrandProfileEditorClient } from "@/components/brand/BrandProfileEditorClient";
 
 interface BrandSettingsPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default async function BrandSettingsPage({
-  params,
-}: BrandSettingsPageProps) {
-  const supabase = createClient();
+export default async function BrandSettingsPage(props: BrandSettingsPageProps) {
+  const params = await props.params;
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

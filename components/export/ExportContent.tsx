@@ -3,15 +3,15 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
-  FileTextIcon,
-  FileDownIcon,
-  TypeIcon,
-  CopyIcon,
-  CheckCircle2Icon,
-  ArrowLeftIcon,
-  SearchIcon,
-  RefreshCwIcon,
-  TrendingUpIcon,
+  FileText,
+  FileDown,
+  Type,
+  Copy,
+  CheckCircle,
+  ArrowLeft,
+  Search,
+  RefreshCw,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ScoreBanner } from "./ScoreBanner";
@@ -176,13 +176,13 @@ export default function ExportContent({
         <div className="flex items-center gap-2">
           <Link href={`/clean/${doc.id}`}>
             <Button variant="secondary" size="sm" className="hidden sm:flex">
-              <ArrowLeftIcon size={14} className="mr-2" />
+              <ArrowLeft size={14} className="mr-2" />
               Clean-up
             </Button>
           </Link>
           <Link href="/history">
             <Button variant="secondary" size="sm" className="hidden sm:flex">
-              <SearchIcon size={14} className="mr-2" />
+              <Search size={14} className="mr-2" />
               View history
             </Button>
           </Link>
@@ -200,7 +200,7 @@ export default function ExportContent({
           <div className="flex-1">
             {biggestImprovement ? (
               <div className="flex items-center gap-2 mb-3 px-1">
-                <TrendingUpIcon size={14} className="text-green-600" />
+                <TrendingUp size={14} className="text-green-600" />
                 <span className="text-[12px] font-semibold text-gray-700">
                   Biggest improvement: {biggestImprovement.label}{" "}
                   <span className="text-green-600">+{biggestImprovement.delta.toFixed(1)} pts</span>
@@ -228,7 +228,7 @@ export default function ExportContent({
                   onClick={() => runRescore()}
                   disabled={rescoreLoading}
                 >
-                  <RefreshCwIcon size={14} className={`mr-2 ${rescoreLoading ? "animate-spin" : ""}`} />
+                  <RefreshCw size={14} className={`mr-2 ${rescoreLoading ? "animate-spin" : ""}`} />
                   {rescoreLoading ? "Recalculating…" : "Recalculate"}
                 </Button>
               </div>
@@ -240,7 +240,7 @@ export default function ExportContent({
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <DownloadCard 
-                  icon={FileTextIcon}
+                  icon={FileText}
                   iconBg="bg-green-100"
                   iconColor="text-green-700"
                   title="Word doc"
@@ -249,7 +249,7 @@ export default function ExportContent({
                   primary
                 />
                 <DownloadCard 
-                  icon={FileDownIcon}
+                  icon={FileDown}
                   iconBg="bg-red-100"
                   iconColor="text-red-700"
                   title="PDF"
@@ -257,7 +257,7 @@ export default function ExportContent({
                   onClick={() => downloadReport("pdf")}
                 />
                 <DownloadCard 
-                  icon={TypeIcon}
+                  icon={Type}
                   iconBg="bg-blue-100"
                   iconColor="text-blue-700"
                   title="Plain text"
@@ -265,7 +265,7 @@ export default function ExportContent({
                   onClick={() => downloadReport("txt")}
                 />
                 <DownloadCard 
-                  icon={copyStatus === "copied" ? CheckCircle2Icon : CopyIcon}
+                  icon={copyStatus === "copied" ? CheckCircle : Copy}
                   iconBg="bg-purple-100"
                   iconColor={copyStatus === "copied" ? "text-green-600" : "text-purple-700"}
                   title={copyStatus === "copied" ? "Copied" : "Copy to clipboard"}

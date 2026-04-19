@@ -15,13 +15,14 @@ import { useToast } from "@/lib/hooks/useToast";
 import { Tabs } from "@/components/ui/Tabs";
 import { getWordCount } from "@/lib/utils/word-count";
 import { trackEvent } from "@/lib/telemetry/client";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type Document = Database["public"]["Tables"]["documents"]["Row"];
 type Diagnosis = Database["public"]["Tables"]["diagnoses"]["Row"];
 
 export default function DiagnosisPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = typeof params.id === "string" ? params.id : (Array.isArray(params.id) ? params.id[0] : "");
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
@@ -448,7 +449,7 @@ export default function DiagnosisPage() {
               className="hidden lg:flex ml-auto items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               title={collapsedCols.original ? "Expand Original" : "Collapse Original"}
             >
-              {collapsedCols.original ? <ChevronRightIcon size={14} /> : <ChevronLeftIcon size={14} />}
+              {collapsedCols.original ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
             </button>
           </div>
           {collapsedCols.original ? (
@@ -491,7 +492,7 @@ export default function DiagnosisPage() {
               className="hidden lg:flex ml-auto items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               title={collapsedCols.scores ? "Expand Analysis" : "Collapse Analysis"}
             >
-              {collapsedCols.scores ? <ChevronRightIcon size={14} /> : <ChevronLeftIcon size={14} />}
+              {collapsedCols.scores ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
             </button>
           </div>
           {collapsedCols.scores ? (
@@ -550,7 +551,7 @@ export default function DiagnosisPage() {
               className="hidden lg:flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
               title={collapsedCols.issues ? "Expand Issues" : "Collapse Issues"}
             >
-              {collapsedCols.issues ? <ChevronLeftIcon size={14} /> : <ChevronRightIcon size={14} />}
+              {collapsedCols.issues ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
             </button>
             {!collapsedCols.issues && (
               <>

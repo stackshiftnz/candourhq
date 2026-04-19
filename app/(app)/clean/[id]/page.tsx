@@ -16,7 +16,7 @@ import { ExplanationDrawer } from "@/components/cleanup/ExplanationDrawer";
 import { HighlightText } from "@/components/analyse/HighlightText";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
-import { ArrowRightIcon, HistoryIcon, UserIcon, CheckCircle2Icon, InfoIcon, ClockIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { ArrowRight, History, User, CheckCircle, Info, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { submitForApproval } from "@/app/actions/team";
 import { useToast } from "@/lib/hooks/useToast";
 import { trackEvent } from "@/lib/telemetry/client";
@@ -29,7 +29,8 @@ type Diagnosis = Database["public"]["Tables"]["diagnoses"]["Row"];
 type CleanupRecord = Database["public"]["Tables"]["cleanups"]["Row"];
 
 export default function CleanupPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = typeof params.id === "string" ? params.id : (Array.isArray(params.id) ? params.id[0] : "");
   const router = useRouter();
   const supabase = createClient();
 
@@ -72,7 +73,7 @@ export default function CleanupPage() {
     try {
       const { data: docData } = await supabase.from("documents").select("*").eq("id", id).single();
       const { data: diagData } = await supabase.from("diagnoses").select("*").eq("document_id", id).single();
-      const { data: cleanData } = await supabase.from("cleanups").select("*").eq("document_id", id).single();
+      const { data: cleanData } = await supabase.from("cleanups").select("*").eq("document_id", id).maybeSingle();
 
       if (docData) setDoc(docData);
       if (diagData) setDiagnosis(diagData);
@@ -92,19 +93,19 @@ export default function CleanupPage() {
       }
 
       // Resolve brand profile name for topbar display
-      if (docData) {
-        let profileId = docData.brand_profile_id;
-        if (!profileId) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            const { data: p } = await supabase
-              .from("profiles")
-              .select("default_brand_profile_id")
-              .eq("id", session.user.id)
-              .single();
-            profileId = p?.default_brand_profile_id || null;
+        if (docData) {
+          let profileId = docData.brand_profile_id;
+          if (!profileId) {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const { data: p } = await supabase
+                .from("profiles")
+                .select("default_brand_profile_id")
+                .eq("id", user.id)
+                .single();
+              profileId = p?.default_brand_profile_id || null;
+            }
           }
-        }
         if (profileId) {
           const { data: bp } = await supabase
             .from("brand_profiles")
@@ -595,12 +596,35 @@ export default function CleanupPage() {
 
     const totalIssues = diagnosis.issues.length;
     
+    // 1. Convert all remaining pause cards to clean paragraphs (softened/skipped)
+    const updatedParagraphs: ParagraphType[] = cleanup.paragraphs.map(p => {
+      if (p.type === "clean") return p;
+      return {
+        ...p,
+        type: "clean",
+        cleaned: p.cleaned || p.original || "",
+        pause_card: null,
+        changes: [
+          ...(p.changes || []),
+          {
+            tag: "softened" as const,
+            original_phrase: p.original || "",
+            cleaned_phrase: p.cleaned || p.original || "",
+            explanation: "Claim softened — evidence prompts skipped.",
+            ...(p.pause_card?.issue_id ? { issue_id: p.pause_card.issue_id } : {})
+          }
+        ]
+      } as ParagraphType;
+    });
+
     setCleanup({
       ...cleanup,
+      paragraphs: updatedParagraphs,
       issues_resolved: totalIssues
     });
 
     await supabase.from("cleanups").update({
+      paragraphs: updatedParagraphs,
       issues_resolved: totalIssues
     }).eq("document_id", id);
 
@@ -608,12 +632,12 @@ export default function CleanupPage() {
       cleanupId: cleanup.id,
       documentId: String(id),
       eventType: "accept_remaining",
-      paragraphs: cleanup.paragraphs,
+      paragraphs: updatedParagraphs,
       userEdits: cleanup.user_edits || [],
       metadata: { issues_total: totalIssues },
     });
 
-    await finalizeCleanup(cleanup.paragraphs);
+    await finalizeCleanup(updatedParagraphs);
   };
 
   const finalizeCleanup = async (paragraphs: ParagraphType[]) => {
@@ -642,9 +666,12 @@ export default function CleanupPage() {
 
 
   const handleSubmitForApproval = async () => {
-    if (!doc) return;
     setIsSubmitting(true);
-    const result = await submitForApproval(typeof id === "string" ? id : id[0]);
+    if (!doc || !id) {
+      setIsSubmitting(false);
+      return;
+    }
+    const result = await submitForApproval(id);
     setIsSubmitting(false);
     if (result.success) {
       setDoc({ ...doc, status: "submitted" });
@@ -801,7 +828,7 @@ export default function CleanupPage() {
       <div className="h-[56px] border-b border-gray-100 flex items-center justify-between px-6 shrink-0 z-50 bg-white">
         <div className="flex items-center gap-4">
           <Link href="/history" className="p-2 -ml-2 text-gray-400 hover:text-gray-900 transition-colors">
-            <HistoryIcon size={20} />
+            <History size={20} />
           </Link>
           <div>
             <h1 className="text-[14px] font-bold text-gray-900 leading-tight">
@@ -851,7 +878,7 @@ export default function CleanupPage() {
             aria-label="View revision history"
             title="Revision history"
           >
-            <ClockIcon size={18} />
+            <Clock size={18} />
           </button>
           <Button variant="secondary" size="sm" onClick={() => router.push(`/analyse/${id}`)}>
             Diagnosis
@@ -870,14 +897,16 @@ export default function CleanupPage() {
             <Button
               variant="primary"
               size="sm"
-              onClick={() => router.push(`/export/${typeof id === "string" ? id : id[0]}`)}
+              onClick={() => {
+                if (id) router.push(`/export/${id}`);
+              }}
               disabled={progressPercent < 100}
             >
               Export
             </Button>
           )}
           <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-            <UserIcon size={16} className="text-gray-400" />
+            <User size={16} className="text-gray-400" />
           </div>
         </div>
       </div>
@@ -894,7 +923,7 @@ export default function CleanupPage() {
           mapping may be imprecise. Surface this to the user rather than silently proceed. */}
       {paragraphMismatch && (
         <div className="shrink-0 px-4 sm:px-6 py-2 bg-amber-50 border-b border-amber-100 flex items-start gap-2 text-[12px] text-amber-800">
-          <InfoIcon size={14} className="mt-0.5 shrink-0" />
+          <Info size={14} className="mt-0.5 shrink-0" />
           <span>
             Structure changed during clean-up — your original had {paragraphMismatch.originalCount} paragraph{paragraphMismatch.originalCount === 1 ? "" : "s"}, the cleaned version has {paragraphMismatch.cleanedCount}. Review carefully before exporting; you can edit any paragraph inline.
           </span>
@@ -936,7 +965,7 @@ export default function CleanupPage() {
               className="ml-auto flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               title={collapsedCols.original ? "Expand Original" : "Collapse Original"}
             >
-              {collapsedCols.original ? <ChevronRightIcon size={14} /> : <ChevronLeftIcon size={14} />}
+              {collapsedCols.original ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
             </button>
           </div>
           {collapsedCols.original ? (
@@ -995,12 +1024,12 @@ export default function CleanupPage() {
               {progressPercent === 100 && (
                 <div className="mt-12 p-8 border-2 border-dashed border-teal-100 rounded-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-500">
                   <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center mb-4">
-                    <CheckCircle2Icon size={24} className="text-teal-600" />
+                    <CheckCircle size={24} className="text-teal-600" />
                   </div>
                   <h3 className="text-[18px] font-bold text-gray-900 mb-2">Clean-up complete!</h3>
                   <p className="text-[14px] text-gray-500 mb-6">You&apos;ve resolved all {diagnosis.issues.length} issues. Your document is ready to go.</p>
                   <Button variant="primary" size="lg" onClick={() => router.push(`/export/${id}`)}>
-                    Go to Export <ArrowRightIcon size={16} className="ml-2" />
+                    Go to Export <ArrowRight size={16} className="ml-2" />
                   </Button>
                 </div>
               )}
@@ -1017,7 +1046,7 @@ export default function CleanupPage() {
                     title="Live estimate based on issues resolved. Accurate score is calculated when you export."
                   >
                     Estimated Score
-                    <InfoIcon size={11} className="text-gray-300" />
+                    <Info size={11} className="text-gray-300" />
                   </span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-[20px] font-bold text-gray-900">~{currentScore}</span>
@@ -1041,7 +1070,7 @@ export default function CleanupPage() {
               className="flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
               title={collapsedCols.queue ? "Expand Queue" : "Collapse Queue"}
             >
-              {collapsedCols.queue ? <ChevronLeftIcon size={14} /> : <ChevronRightIcon size={14} />}
+              {collapsedCols.queue ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
             </button>
             {!collapsedCols.queue && (
               <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest pl-1">Queue</h2>
