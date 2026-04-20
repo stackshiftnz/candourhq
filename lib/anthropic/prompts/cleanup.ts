@@ -1,4 +1,4 @@
-import { ContentType, LanguageVariant, DiagnosisIssue } from "../types";
+import { ContentType, LanguageVariant, DiagnosisIssue, RefinementAmbition } from "../types";
 
 export interface CleanupPromptOptions {
   languageVariant: LanguageVariant;
