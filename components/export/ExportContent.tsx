@@ -233,7 +233,7 @@ export default function ExportContent({
                       rescoreError={!!rescoreError}
                    />
 
-                   {rescoreError && (
+                   {!!rescoreError && (
                       <div className="flex items-center justify-between p-6 bg-accent/5 border border-accent/20 rounded-[32px] animate-in slide-in-from-top-4 duration-500">
                          <div className="flex items-center gap-4">
                             <RefreshCw className="text-accent animate-spin-slow" size={20} />
