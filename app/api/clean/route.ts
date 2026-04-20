@@ -87,6 +87,8 @@ export async function POST(req: Request) {
   const body = await req.json();
   const documentId: string | undefined = body.documentId;
   const ambition: RefinementAmbition = body.ambition || "conservative";
+
+  if (!documentId) {
     return NextResponse.json({ error: "No documentId provided." }, { status: 400 });
   }
 
