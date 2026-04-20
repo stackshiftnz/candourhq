@@ -22,8 +22,8 @@ import {
   Clock, 
   FileText, 
   Zap, 
-  AlertCircle,
-  CheckCircle2,
+  CircleAlert,
+  CircleCheck,
   History as HistoryIcon,
   Sparkles,
   ArrowRight,
@@ -632,7 +632,7 @@ export default function DiagnosisPage() {
               className="flex-1 flex flex-col items-center justify-center gap-6 hover:bg-muted/50 transition-all group/ribbon py-10"
             >
               <div className="w-8 h-8 rounded-full bg-foreground/5 flex items-center justify-center text-foreground/40 group-hover/ribbon:text-foreground transition-colors">
-                <AlertCircle size={16} />
+                <CircleAlert size={16} />
               </div>
               <span className="text-[10px] font-black text-foreground/40 uppercase tracking-[0.25em] -rotate-90 whitespace-nowrap group-hover/ribbon:text-foreground transition-colors">Insights</span>
             </button>
@@ -656,7 +656,7 @@ export default function DiagnosisPage() {
                 {issueCount === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-6">
                     <div className="w-24 h-24 rounded-[40%] bg-green-500/10 flex items-center justify-center text-green-500 border border-green-500/20">
-                       <CheckCircle2 size={40} strokeWidth={1.5} />
+                       <CircleCheck size={40} strokeWidth={1.5} />
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-xl font-bold tracking-tight">Enterprise Ready</h3>

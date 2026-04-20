@@ -8,7 +8,7 @@ import {
   Hash, 
   Globe, 
   User, 
-  AlertCircle, 
+  CircleAlert, 
   CheckCheck, 
   MessageSquare, 
   Pencil,
@@ -79,7 +79,7 @@ export function ProvenanceRecordCard({
         {row("Lexical Load", `${wordCount} vectors`, <Hash size={12} />)}
         {row("Linguistic Variant", language, <Globe size={12} />)}
         {row("Brand Matrix", brandProfile, <User size={12} />)}
-        {row("Threats Identified", issuesFound, <AlertCircle size={12} />)}
+        {row("Threats Identified", issuesFound, <CircleAlert size={12} />)}
         {row("Threats Neutralized", `${issuesResolved} / ${issuesFound}`, <CheckCheck size={12} />)}
         {row("State Interventions", `${pauseCardsAnswered} / ${pauseCardsTotal}`, <MessageSquare size={12} />)}
         {row("Manual Overlays", manualEditsCount > 0 ? manualEditsCount : "Zero", <Pencil size={12} />)}

@@ -3,7 +3,7 @@
 import { DiagnosisIssue } from "@/lib/anthropic/types";
 import { cn } from "@/lib/utils";
 import { 
-  CheckCircle2, 
+  CircleCheck, 
   Circle, 
   AlertTriangle, 
   Target, 

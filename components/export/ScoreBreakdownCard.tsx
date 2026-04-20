@@ -8,7 +8,7 @@ import {
   ShieldAlert, 
   ArrowRight, 
   Percent,
-  CheckCircle2,
+  CircleCheck,
   Info
 } from "lucide-react";
 
@@ -135,7 +135,7 @@ export function ScoreBreakdownCard({
           </div>
         ) : (
           <div className="flex items-start gap-3 opacity-60">
-             <CheckCircle2 size={14} className="mt-0.5 text-primary" />
+             <CircleCheck size={14} className="mt-0.5 text-primary" />
              <p className="text-[11px] font-medium text-muted-foreground leading-relaxed">
                Final analysis PASS completed. Recalculated results leverage updated linguistic vectors for maximum precision.
              </p>

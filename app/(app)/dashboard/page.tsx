@@ -8,9 +8,9 @@ import { cn } from "@/lib/utils";
 import { 
   Plus, 
   FileText, 
-  CheckCircle2, 
+  CircleCheck, 
   ArrowUpRight, 
-  AlertCircle,
+  CircleAlert,
   TrendingUp,
   ChevronRight 
 } from "lucide-react";
@@ -330,7 +330,7 @@ export default async function DashboardPage() {
           <div className="group p-6 rounded-3xl bg-card border border-border shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                <CheckCircle2 size={20} />
+                <CircleCheck size={20} />
               </div>
             </div>
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Resolved</p>
@@ -356,7 +356,7 @@ export default async function DashboardPage() {
           <div className="group p-6 rounded-3xl bg-primary text-primary-foreground shadow-xl transition-all">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 rounded-xl bg-primary-foreground/10">
-                <AlertCircle size={20} />
+                <CircleAlert size={20} />
               </div>
             </div>
             <p className="text-[11px] font-bold opacity-70 uppercase tracking-widest">Top Issue</p>

@@ -18,7 +18,7 @@ import {
   Mail, 
   Trash2, 
   History, 
-  CheckCircle2, 
+  CircleCheck, 
   MessageSquare, 
   ChevronRight, 
   Settings2, 
@@ -643,7 +643,7 @@ export function TeamWorkspaceClient({
 
                 {submittedDocs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 px-6 border-2 border-dashed border-border rounded-[48px] bg-muted/5">
-                     <CheckCircle2 size={32} className="text-green-500/20 mb-4" />
+                     <CircleCheck size={32} className="text-green-500/20 mb-4" />
                      <p className="text-[11px] font-bold uppercase text-center text-muted-foreground tracking-widest">Registry Clear · No pending audits</p>
                   </div>
                 ) : (
@@ -728,7 +728,7 @@ export function TeamWorkspaceClient({
                                 loading={approvingId === doc.id}
                                 onClick={() => handleApprove(doc.id)}
                               >
-                                <CheckCircle2 size={16} className="mr-2" strokeWidth={3} />
+                                <CircleCheck size={16} className="mr-2" strokeWidth={3} />
                                 Verify Vector
                               </Button>
                               <Button

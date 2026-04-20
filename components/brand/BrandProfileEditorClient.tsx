@@ -24,7 +24,7 @@ import {
   CreditCard,
   Users,
   Bell,
-  CheckCircle2,
+  CircleCheck,
   AlertTriangle,
   History,
   Sparkles,
@@ -476,7 +476,7 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
                        <span style={{ fontSize: 24 }} aria-hidden="true" className="group-hover:scale-110 transition-transform">
                          {flag}
                        </span>
-                       {selected && <CheckCircle2 size={16} className="text-primary" />}
+                       {selected && <CircleCheck size={16} className="text-primary" />}
                     </div>
                     <div>
                        <span className={cn(
@@ -648,7 +648,7 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
                     placeholder="Preserve phrase..."
                     className="h-14 px-6 text-sm font-bold rounded-[22px] bg-muted/20 border-border/50 focus:bg-background transition-all pr-12"
                  />
-                 <CheckCircle2 size={16} className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground/30 pointer-events-none" />
+                 <CircleCheck size={16} className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground/30 pointer-events-none" />
               </div>
               <Button
                 variant="primary"
@@ -762,7 +762,7 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
                         onClick={addExample}
                         disabled={!newExample.trim()}
                       >
-                        <CheckCircle2 size={14} className="mr-2" strokeWidth={3} />
+                        <CircleCheck size={14} className="mr-2" strokeWidth={3} />
                         Link Sample
                       </Button>
                       <Button

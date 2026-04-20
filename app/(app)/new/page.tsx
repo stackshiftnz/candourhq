@@ -25,7 +25,7 @@ import {
   ArrowRight, 
   Sparkles,
   Briefcase,
-  AlertCircle
+  CircleAlert
 } from "lucide-react";
 
 type BrandProfile = Database["public"]["Tables"]["brand_profiles"]["Row"];
@@ -478,12 +478,12 @@ export default function NewDocumentPage() {
            <div className="flex items-center gap-3">
              {wordCount > 0 && wordCount < 50 && (
                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-accent/5 border border-accent/20 text-[10px] font-bold text-accent animate-in fade-in slide-in-from-left-2 transition-all">
-                 <AlertCircle size={12} /> MIN. 50 WORDS RECOMMENDED
+                 <CircleAlert size={12} /> MIN. 50 WORDS RECOMMENDED
                </div>
              )}
              {wordCount > 3000 && (
                 <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-primary/5 border border-primary/20 text-[10px] font-bold text-primary animate-in fade-in slide-in-from-left-2 transition-all">
-                  <AlertCircle size={12} /> LONG CONTENT
+                  <CircleAlert size={12} /> LONG CONTENT
                 </div>
              )}
            </div>

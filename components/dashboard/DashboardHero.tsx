@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
   Plus, 
-  CheckCircle2, 
+  CircleCheck, 
   LayoutDashboard
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -34,7 +34,7 @@ export function DashboardHero({ userName, statusLine }: DashboardHeroProps) {
             {mounted ? greeting : "Good day"}, <span className="text-primary">{userName}</span>.
           </h1>
           <p className="text-sm font-medium text-muted-foreground flex items-center gap-2 opacity-80">
-            <CheckCircle2 size={14} className="text-primary" strokeWidth={2.5} />
+            <CircleCheck size={14} className="text-primary" strokeWidth={2.5} />
             {statusLine}
           </p>
         </div>

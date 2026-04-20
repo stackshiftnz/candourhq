@@ -733,8 +733,8 @@ export default function CleanupPage() {
     PanelLeftOpen, 
     PanelRightClose, 
     PanelRightOpen,
-    AlertCircle,
-    CheckCircle2,
+    CircleAlert,
+    CircleCheck,
     History: HistoryIcon,
     Sparkles,
     ChevronLeft,
@@ -753,7 +753,7 @@ export default function CleanupPage() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center bg-background">
         <div className="w-20 h-20 rounded-3xl bg-accent/10 flex items-center justify-center text-accent">
-          <AlertCircle size={40} strokeWidth={1.5} />
+          <CircleAlert size={40} strokeWidth={1.5} />
         </div>
         <div className="space-y-2">
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Critical Error</h2>
