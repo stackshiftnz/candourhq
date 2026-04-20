@@ -205,7 +205,7 @@ export function RevisionHistoryDrawer({ cleanupId, isOpen, onClose, onRestore }:
                             >
                               {restoringId === rev.id ? (
                                 <>
-                                  <Spinner size="xs" />
+                                  <Spinner size="sm" />
                                   Synthesizing State...
                                 </>
                               ) : (

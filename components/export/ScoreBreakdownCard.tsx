@@ -39,7 +39,7 @@ function ScoreRow({ label, original, final, rescoreError, icon }: ScoreRowProps)
         <ArrowRight size={12} className="text-muted-foreground/20" />
         <div className="w-10 flex justify-end">
           {isPending ? (
-            <Spinner size="xs" className="text-muted-foreground/50" />
+            <Spinner size="sm" className="text-muted-foreground/50" />
           ) : rescoreError && final === null ? (
             <span className="text-[13px] font-bold text-muted-foreground opacity-40">
               {original.toFixed(1)}
@@ -103,7 +103,7 @@ export function ScoreBreakdownCard({
             </span>
             <div className="flex items-baseline gap-1 min-w-[50px] justify-end">
               {isPending ? (
-                <Spinner size="xs" className="text-muted-foreground/40" />
+                <Spinner size="sm" className="text-muted-foreground/40" />
               ) : rescoreError && finalAverage === null ? (
                 <span className="text-2xl font-bold text-muted-foreground opacity-30">
                   {originalAverage.toFixed(1)}
