@@ -26,20 +26,34 @@ export function DownloadCard({
       onClick={onClick}
       aria-label={`${title}. ${description}`}
       className={cn(
-        "flex flex-col items-start p-4 bg-white border rounded-xl text-left transition-all hover:shadow-sm active:scale-95 group",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-1",
-        primary ? "border-gray-900 border-2" : "border-gray-200"
+        "flex items-center gap-4 p-5 bg-card border rounded-[28px] text-left transition-all duration-300 group relative overflow-hidden",
+        "hover:shadow-2xl hover:shadow-black/5 hover:-translate-y-1 active:scale-95",
+        "focus:outline-none focus:ring-4 focus:ring-primary/5",
+        primary ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/30"
       )}
     >
-      <div className={cn("p-2 rounded-lg mb-3 shadow-sm", iconBg)} aria-hidden="true">
-        <Icon size={20} className={iconColor} />
+      {primary && (
+        <div className="absolute top-0 right-0 p-3">
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+        </div>
+      )}
+
+      <div className={cn(
+        "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-500",
+        "shadow-inner group-hover:scale-110",
+        iconBg
+      )} aria-hidden="true">
+        <Icon size={22} className={iconColor} />
       </div>
-      <h3 className="text-[13px] font-semibold text-gray-900 mb-1 group-hover:text-gray-700">
-        {title}
-      </h3>
-      <p className="text-[11px] text-gray-500 leading-tight">
-        {description}
-      </p>
+
+      <div className="flex flex-col gap-0.5">
+        <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+          {title}
+        </h3>
+        <p className="text-[11px] font-medium text-muted-foreground leading-tight opacity-70">
+          {description}
+        </p>
+      </div>
     </button>
   );
 }

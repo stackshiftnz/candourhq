@@ -1,7 +1,17 @@
 import { createClient } from "@/lib/supabase/server-user";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Lock } from "lucide-react";
+import { 
+  Lock, 
+  Settings2, 
+  User, 
+  ChevronRight, 
+  CreditCard, 
+  Users, 
+  Bell, 
+  ShieldAlert,
+  ArrowRight
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
   TeamWorkspaceClient,
@@ -11,6 +21,7 @@ import {
   type WorkspaceData,
 } from "@/components/team/TeamWorkspaceClient";
 import type { Database } from "@/types/database";
+import { cn } from "@/lib/utils";
 
 type WorkspaceRow = Database["public"]["Tables"]["workspaces"]["Row"];
 type TeamMemberRow = Database["public"]["Tables"]["team_members"]["Row"];
@@ -43,8 +54,14 @@ export default async function TeamSettingsPage() {
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: true });
 
+  const NAV_ACCOUNT_LINKS = [
+    { label: "Plan and billing", href: "/settings/billing", icon: <CreditCard size={14} /> },
+    { label: "Team members", href: "/settings/team", icon: <Users size={14} />, active: true },
+    { label: "Notifications", href: "/settings/notifications", icon: <Bell size={14} /> },
+  ];
+
   if (plan === "trial" || plan === "solo") {
-    return <PlanGate allBrandProfiles={allProfiles ?? []} />;
+    return <PlanGate allBrandProfiles={allProfiles ?? []} navLinks={NAV_ACCOUNT_LINKS} />;
   }
 
   // ── Workspace fetch or create ────────────────────────────────────────────
@@ -101,8 +118,11 @@ export default async function TeamSettingsPage() {
 
   if (!workspace) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-gray-500 text-sm">Failed to load workspace.</p>
+      <div className="flex items-center justify-center h-full bg-background">
+        <div className="flex flex-col items-center gap-4">
+           <ShieldAlert className="text-muted-foreground/30" size={48} />
+           <p className="text-muted-foreground text-xs font-bold">Workspace initialization failure</p>
+        </div>
       </div>
     );
   }
@@ -237,78 +257,109 @@ export default async function TeamSettingsPage() {
 
 function PlanGate({
   allBrandProfiles,
+  navLinks,
 }: {
   allBrandProfiles: Array<{ id: string; name: string; is_default: boolean }>;
+  navLinks: Array<{ label: string; href: string; icon: React.ReactNode; active?: boolean }>;
 }) {
   return (
-    <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-white">
+    <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-background selection:bg-primary/20">
       {/* Left nav */}
-      <aside className="hidden lg:flex flex-col w-[180px] flex-shrink-0 border-r border-gray-100 bg-gray-50 py-4 overflow-y-auto">
+      <aside className="hidden lg:flex flex-col w-[240px] flex-shrink-0 border-r border-border bg-muted/20 py-8 overflow-y-auto">
         {allBrandProfiles.length > 0 && (
           <>
-            <div className="px-4 mb-2">
-              <p className="text-[12px] font-medium uppercase tracking-[0.05em] text-gray-400">
-                Brand profiles
-              </p>
+            <div className="px-6 mb-4">
+               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2 px-2">
+                 Identity Matrices
+               </p>
             </div>
-            <nav className="mb-4">
+            <nav className="mb-8 px-3 space-y-1">
               {allBrandProfiles.map((p) => (
                 <Link
                   key={p.id}
                   href={`/settings/brand/${p.id}`}
-                  className="flex items-center px-4 py-2 text-[13px] text-gray-400 hover:text-gray-600 transition-colors"
+                  className="flex items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-all rounded-xl group"
                 >
+                  <div className="w-2 h-2 rounded-full bg-muted-foreground/20 group-hover:bg-primary transition-all" />
                   <span className="truncate">{p.name}</span>
                 </Link>
               ))}
             </nav>
           </>
         )}
-        <div className="px-4 mb-2 mt-2">
-          <p className="text-[12px] font-medium uppercase tracking-[0.05em] text-gray-400">
-            Account
-          </p>
+        <div className="px-6 mb-4 mt-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2 px-2">
+              Nexus Nodes
+            </p>
         </div>
-        <nav>
-          <Link
-            href="/settings/billing"
-            className="flex items-center px-4 py-2 text-[13px] text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            Plan and billing
-          </Link>
-          <Link
-            href="/settings/team"
-            className="flex items-center px-4 py-2 text-[13px] font-medium text-gray-900 bg-white border-r-2 border-gray-900 transition-colors"
-          >
-            Team members
-          </Link>
-          <Link
-            href="/settings/notifications"
-            className="flex items-center px-4 py-2 text-[13px] text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            Notifications
-          </Link>
+        <nav className="px-3 space-y-1">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(
+                "flex items-center gap-3 px-4 py-2.5 text-[12px] font-bold transition-all duration-300 rounded-xl",
+                link.active
+                   ? "text-foreground bg-background border border-border shadow-xl shadow-black/5"
+                   : "text-muted-foreground/40 hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <div className="w-2 opacity-50">{link.icon}</div>
+              <span>{link.label}</span>
+            </Link>
+          ))}
         </nav>
       </aside>
 
       {/* Gate content */}
-      <div className="flex-1 flex items-center justify-center px-6">
-        <div className="max-w-sm w-full text-center space-y-4">
-          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto">
-            <Lock size={20} className="text-gray-400" />
+      <div className="flex-1 flex flex-col items-center justify-center px-12 relative overflow-hidden">
+        {/* Background Visual Flair */}
+        <div className="absolute top-0 left-0 right-0 h-[50vh] bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] translate-x-1/2 translate-y-1/2 pointer-events-none" />
+
+        <div className="max-w-md w-full text-center space-y-8 relative z-10">
+          <div className="relative inline-block">
+             <div className="w-24 h-24 rounded-[40px] bg-primary/10 border-2 border-primary/20 flex items-center justify-center mx-auto transform rotate-6 hover:rotate-0 transition-transform duration-500 shadow-2xl shadow-primary/10">
+                <Users size={40} className="text-primary" />
+             </div>
+             <div className="absolute -top-2 -right-2 w-10 h-10 rounded-2xl bg-foreground border-4 border-background flex items-center justify-center text-background shadow-xl">
+                <Lock size={16} />
+             </div>
           </div>
-          <h2 className="text-[17px] font-medium text-gray-900">
-            Team features are available on the Team plan
-          </h2>
-          <p className="text-[13px] text-gray-500">
-            Invite members, set roles, manage an approval queue, and configure
-            workflow rules with a Team or Agency subscription.
-          </p>
-          <Link href="/settings/billing">
-            <Button variant="primary" className="mt-2">
-              Upgrade plan
+
+          <div className="space-y-3">
+              <h2 className="text-4xl font-bold text-foreground tracking-tight leading-tight">
+                Enterprise Collaboration Suite
+              </h2>
+             <p className="text-sm font-medium text-muted-foreground/60 leading-relaxed">
+               Industrial-grade team workflows are restricted to current plan constraints. Synchronize your team nodes to unlock collective intelligence features.
+             </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 py-4">
+             {[
+               "Collective Identity Management",
+               "Linguistic Approval Protocols",
+               "Role-Based Permission Sets",
+               "Centralized Verification Queue"
+             ].map((feature, i) => (
+                <div key={i} className="flex items-center gap-3 px-6 py-4 rounded-3xl bg-muted/10 border border-border/50 text-left">
+                   <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    <span className="text-[11px] font-bold text-foreground/80">{feature}</span>
+                </div>
+             ))}
+          </div>
+
+          <Link href="/settings/billing" className="block transform hover:scale-[1.02] transition-transform active:scale-[0.98]">
+            <Button className="h-16 px-12 rounded-[32px] font-bold text-sm bg-foreground text-background shadow-2xl shadow-black/20 group w-full">
+              Advance Plan Tier
+              <ArrowRight size={16} className="ml-3 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
+          
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
+            System Upgrade Required · v2.4.0
+          </p>
         </div>
       </div>
     </div>

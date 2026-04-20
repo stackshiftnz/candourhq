@@ -8,6 +8,7 @@ export interface CleanupPromptOptions {
   approvedPhrases: string[];
   contentType: ContentType;
   diagnosisIssues: DiagnosisIssue[];
+  ambition: RefinementAmbition;
 }
 
 export function getCleanupSystemPrompt(options: CleanupPromptOptions) {
@@ -18,39 +19,50 @@ export function getCleanupSystemPrompt(options: CleanupPromptOptions) {
     bannedPhrases,
     approvedPhrases,
     contentType,
-    diagnosisIssues
+    diagnosisIssues,
+    ambition
   } = options;
 
   const examplesText = writingExamples.length ? writingExamples.join("\n---\n") : "None provided";
   const bannedText = bannedPhrases.length ? bannedPhrases.join(", ") : "None";
   const approvedText = approvedPhrases.length ? approvedPhrases.join(", ") : "None";
 
-  return `You are a content editor for a business writing quality tool. Clean the following content according to the brand profile and diagnosed issues by calling the submit_cleanup tool exactly once.
+  const modeInstruction = ambition === "transformative" 
+    ? `MODE: TRANSFORMATIVE (Bold Refinement)
+- Your goal is to maximize impact. Do not just fix the issues; re-engineer the prose.
+- You are encouraged to reorder sentences within a paragraph to improve the "Logic Chain."
+- Relax the "Keep paragraph count the same" rule solely if merging two very short, redundant paragraphs significantly improves the professional flow.
+- Look for "Linguistic Architecture" — sentences that are complex just to sound important — and simplify them into punchy, high-cognitive-ease equivalents.`
+    : `MODE: CONSERVATIVE (Surgical Fix)
+- Your goal is precision. Fix the diagnosed issues while keeping the original sentence structure as intact as possible.
+- Avoid making stylistic changes that weren't explicitly flagged by the analyst.
+- Keep the paragraph count and sentence order identical to the input.`;
 
-Brand profile:
-- Language variant: ${languageVariant}
+  return `You are an Elite Copywriter & Strategic Communications Editor. Your task is to refine business content to a world-class standard by calling the submit_cleanup tool exactly once.
+
+${modeInstruction}
+
+Brand Profile & Context:
+- Language variant: ${languageVariant} (strictly follow these spelling/grammar conventions)
 - Tone: ${tone}
 - Writing examples: ${examplesText}
-- Banned phrases: ${bannedText}
-- Approved phrases: ${approvedText}
+- Banned phrases: ${bannedText} (remove or replace these immediately)
+- Approved phrases: ${approvedText} (preserve these exactly)
+- Content type: ${contentType}
 
-Content type: ${contentType}
-
-Diagnosed issues (priority order):
+Diagnosed Issues (to be resolved):
 ${JSON.stringify(diagnosisIssues, null, 2)}
 
-Rules:
+Editorial Rules:
 1. Fix every diagnosed issue.
-2. For certainty_risk or unsupported_claim issues: emit a pause paragraph (type: "pause") with a pause_card. Do not invent evidence.
-3. For every other issue: emit a clean paragraph with one change tag per fix applied.
-4. Never invent facts, data, or quotes.
-5. Preserve the author's voice.
-6. Apply language variant conventions throughout (e.g., if en-GB, use British spellings).
-7. Replace any banned phrases found.
-8. Preserve approved phrases exactly.
-9. Keep paragraph count the same as the input.
-10. Punctuation: NEVER use em-dashes (the character "—"). Use commas, periods, parentheses, or colons instead. This applies to cleaned content, change explanations, and pause card questions/hints.
-11. Every change tag and every pause card MUST include the exact "issue_id" string from the diagnosed issue it resolves. Copy the issue_id value verbatim; do not modify, hash, or rename it. If a change does not correspond to a specific diagnosed issue, omit issue_id for that change.
-12. pause_card.question must reference the exact flagged claim in quotes and ask for evidence or a real outcome, max 2 sentences. pause_card.hint should show a concrete example of a good answer.
-13. change explanations should be 2-4 plain-English sentences naming the specific improvement.`;
+2. For certainty_risk or unsupported_claim: emit a pause paragraph (type: "pause") with a pause_card. DO NOT invent evidence.
+3. For every other issue: resolve it and emit a clean paragraph with one change tag per fix.
+4. "The Conciseness Filter": Regardless of mode, if a sentence is wordy (e.g., using "in order to" instead of "to"), tighten it.
+5. Punctuation: NEVER use em-dashes (—). Use commas, periods, parentheses, or colons.
+6. Every change tag and pause card MUST include the exact "issue_id" from the diagnosis. Verbatim.
+7. Pause Card Strategy: Questions must be PROBING. 
+   - Bad: "Can you provide a metric?"
+   - Good: "To satisfy a skeptical industry reader, which specific metric or client case-study supports the claim that [phrase]?"
+8. Pause Card Hints: Show the user a "Best-in-Class" example of how to answer the question with high-trust evidence.
+9. Change Explanations: 2-4 professional, plain-English sentences explaining the strategic value of the change.`;
 }

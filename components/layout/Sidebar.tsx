@@ -15,6 +15,8 @@ import {
   Settings2,
   LogOut,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 const navItems = [
   { label: "Dashboard",      href: "/dashboard",     icon: LayoutDashboard },
@@ -45,9 +47,7 @@ export function Sidebar() {
       .then(({ data }) => {
         if (data?.name) setActiveBrandName(data.name);
       });
-    // intentionally run once on mount — supabase client is stable
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [supabase]);
 
   function toggleCollapsed() {
     setIsCollapsed((prev) => {
@@ -69,119 +69,148 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`sticky top-0 h-screen flex flex-col bg-brand-cream dark:bg-brand-dark overflow-hidden transition-all duration-200 ${
-        isCollapsed ? "w-[56px]" : "w-[240px]"
-      }`}
+      className={cn(
+        "sticky top-0 h-screen flex flex-col bg-background/80 backdrop-blur-md border-r border-border overflow-hidden transition-all duration-300 ease-in-out z-50",
+        isCollapsed ? "w-[64px]" : "w-[240px]"
+      )}
     >
-      {/* Logo + collapse toggle */}
-      <div className={`flex items-center shrink-0 ${isCollapsed ? "flex-col gap-3 px-3 pt-5 pb-3" : "px-5 pt-6 pb-4 gap-3"}`}>
-        <Link href="/dashboard" className={`block shrink-0 ${isCollapsed ? "" : "flex-1 min-w-0"}`}>
-          {isCollapsed ? (
+      {/* Header: Logo + Toggle */}
+      <div className={cn(
+        "flex items-center shrink-0 h-16",
+        isCollapsed ? "justify-center" : "px-4 justify-between"
+      )}>
+        <Link href="/dashboard" className="flex items-center gap-2 overflow-hidden">
+          <div className="shrink-0 w-8 h-8 flex items-center justify-center">
             <Image
               src="/logo-icon.png"
               alt="Candour HQ"
               width={32}
               height={32}
-              className="w-8 h-8 object-contain"
+              className="w-full h-full object-contain"
               priority
             />
-          ) : (
-            <Image
-              src="/logo.png"
-              alt="Candour HQ"
-              width={120}
-              height={120}
-              className="h-auto w-20 dark:invert-0"
-              priority
-            />
+          </div>
+          {!isCollapsed && (
+            <span className="text-lg font-bold tracking-tight text-foreground whitespace-nowrap">
+              Candour
+            </span>
           )}
         </Link>
-        <button
-          onClick={toggleCollapsed}
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
-        </button>
+        {!isCollapsed && (
+          <button
+            onClick={toggleCollapsed}
+            className="p-1 rounded-md hover:bg-muted text-muted-foreground transition-colors"
+            aria-label="Collapse sidebar"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        )}
       </div>
 
-      {/* Brand name row (expanded only) */}
-      {!isCollapsed && (
-        <div className="px-6 pb-3">
-          <p className="text-[12px] font-medium text-gray-400 truncate">{activeBrandName}</p>
-        </div>
-      )}
-
-      {/* Nav */}
-      <nav className="flex-1 px-2 mt-1">
-        <ul className="space-y-0.5">
-          {navItems.map((item) => {
-            const active = isActive(item.href);
-            const Icon = item.icon;
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  title={isCollapsed ? item.label : undefined}
-                  className={[
-                    "flex items-center rounded-xl transition-all duration-200",
-                    isCollapsed ? "justify-center w-10 h-10 mx-auto" : "px-4 py-2.5 gap-3",
-                    "text-[14px] font-medium",
-                    active
-                      ? "text-brand-dark bg-brand-yellow shadow-sm dark:bg-brand-yellow/90"
-                      : "text-gray-500 hover:text-brand-dark hover:bg-[#f2f0ea] dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  <Icon size={16} className="shrink-0" />
-                  {!isCollapsed && item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      {/* Footer — expanded */}
-      {!isCollapsed && (
-        <div className="p-4 mt-auto">
-          <div className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-black/5 dark:bg-gray-900 dark:border-white/10">
-            <div className="w-9 h-9 bg-brand-yellow rounded-full flex items-center justify-center text-brand-dark font-bold text-sm shrink-0">
-              {activeBrandName.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-bold text-brand-dark truncate dark:text-white">
-                {activeBrandName}
-              </p>
-              <p className="text-[11px] font-medium text-brand-dark bg-brand-yellow px-2 py-0.5 rounded inline-block mt-0.5">
-                Admin
-              </p>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors dark:hover:bg-gray-800"
-              title="Sign out"
-            >
-              <LogOut size={15} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Footer — collapsed */}
       {isCollapsed && (
-        <div className="p-2 mt-auto flex flex-col items-center">
+        <div className="flex justify-center pb-2">
           <button
-            onClick={handleSignOut}
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-black/5 transition-colors"
-            title="Sign out"
+            onClick={toggleCollapsed}
+            className="p-1.5 rounded-full bg-muted/50 hover:bg-muted text-muted-foreground transition-all"
+            aria-label="Expand sidebar"
           >
-            <LogOut size={15} />
+            <ChevronRight size={14} />
           </button>
         </div>
       )}
+
+      {/* Brand Context (Expanded Only) */}
+      {!isCollapsed && (activeBrandName) && (
+        <div className="px-4 py-2 border-y border-border/50 mb-4 flex items-center gap-2 overflow-hidden bg-muted/30">
+          <div className="w-5 h-5 rounded bg-primary flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-primary-foreground uppercase shadow-sm">
+            {activeBrandName.charAt(0)}
+          </div>
+          <span className="text-[10px] font-bold text-muted-foreground truncate uppercase tracking-widest">
+            {activeBrandName}
+          </span>
+        </div>
+      )}
+
+      {/* Navigation */}
+      <nav className="flex-1 px-3 space-y-1 overflow-y-auto no-scrollbar">
+        {navItems.map((item) => {
+          const active = isActive(item.href);
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-md transition-all duration-200 group",
+                isCollapsed ? "justify-center h-10 w-10 mx-auto" : "px-3 py-2",
+                active
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <Icon size={isCollapsed ? 20 : 18} className={cn(
+                "shrink-0",
+                !active && "group-hover:scale-105 transition-transform"
+              )} />
+              {!isCollapsed && (
+                <span className="text-sm font-bold tracking-tight">{item.label}</span>
+              )}
+              {isCollapsed && (
+                <div className="sr-only">{item.label}</div>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Footer Actions */}
+      <div className={cn(
+        "p-3 mt-auto border-t border-border space-y-2",
+        isCollapsed ? "flex flex-col items-center" : ""
+      )}>
+        <div className={cn(
+          "flex items-center gap-3",
+          isCollapsed ? "flex-col" : "justify-between"
+        )}>
+          <ThemeToggle />
+          {!isCollapsed && (
+            <button
+              onClick={handleSignOut}
+              className="p-2 rounded-md hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors"
+              title="Sign out"
+            >
+              <LogOut size={18} />
+            </button>
+          )}
+          {isCollapsed && (
+            <button
+              onClick={handleSignOut}
+              className="p-2 rounded-md hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors"
+              title="Sign out"
+            >
+              <LogOut size={18} />
+            </button>
+          )}
+        </div>
+
+        {!isCollapsed && (
+          <div className="pt-2">
+            <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/40 border border-border/50">
+              <div className="w-8 h-8 rounded-full bg-[#ffd480] text-[#181818] flex items-center justify-center text-xs font-bold shrink-0">
+                A
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-foreground truncate">
+                  Admin User
+                </p>
+                <p className="text-[9px] font-bold text-muted-foreground truncate uppercase tracking-widest">
+                  {activeBrandName}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

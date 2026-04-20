@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { anthropic } from "@/lib/anthropic/client";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { CleanupResponse, CleanupParagraph, DiagnosisIssue } from "@/lib/anthropic/types";
+import { CleanupResponse, CleanupParagraph, DiagnosisIssue, RefinementAmbition } from "@/lib/anthropic/types";
 import { getCleanupSystemPrompt } from "@/lib/anthropic/prompts/cleanup";
 import { cleanupTool, CLEANUP_TOOL_NAME } from "@/lib/anthropic/tool-schemas";
 import { recordApiEvent } from "@/lib/telemetry/record";
@@ -86,8 +86,7 @@ export async function POST(req: Request) {
 
   const body = await req.json();
   const documentId: string | undefined = body.documentId;
-
-  if (!documentId) {
+  const ambition: RefinementAmbition = body.ambition || "conservative";
     return NextResponse.json({ error: "No documentId provided." }, { status: 400 });
   }
 
@@ -154,6 +153,7 @@ export async function POST(req: Request) {
     approvedPhrases: brandProfile?.approved_phrases || [],
     contentType: document.content_type,
     diagnosisIssues: issuesWithIds,
+    ambition: ambition,
   });
 
   const systemBlock: TextBlockParam = {

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getScoreBadgeClasses } from "@/lib/utils/score-colour";
 import { formatRelativeTime } from "@/lib/utils/format";
 import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -321,35 +322,35 @@ export default function HistoryPage() {
   // Render
   // ------------------------------------------------------------------
   return (
-    <div className="flex flex-col h-full bg-white overflow-y-auto">
+    <div className="flex flex-col h-full bg-background no-scrollbar overflow-y-auto">
       {/* ---- Topbar ---- */}
-      <div className="sticky top-0 z-10 flex items-center justify-between px-4 lg:px-8 h-14 border-b border-gray-100 bg-white/95 backdrop-blur-sm flex-shrink-0">
-        <h1 className="text-[15px] font-semibold text-gray-900">
-          Document history
+      <div className="sticky top-0 z-20 flex items-center justify-between px-6 lg:px-10 h-20 border-b border-border bg-background/80 backdrop-blur-md shrink-0">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Document History
         </h1>
         <Link
           href="/new"
-          className="inline-flex items-center gap-1.5 h-9 px-3 text-sm font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+          className="inline-flex items-center gap-2 h-11 px-5 text-sm font-bold bg-primary text-primary-foreground rounded-2xl hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/10"
         >
-          <span className="text-base leading-none">+</span>
-          <span className="hidden sm:inline">New document</span>
+          <span className="text-lg leading-none">+</span>
+          <span className="hidden sm:inline">New Document</span>
           <span className="sm:hidden">New</span>
         </Link>
       </div>
 
       {/* ---- Desktop filter bar ---- */}
-      <div className="hidden lg:flex items-center gap-3 px-8 h-11 border-b border-gray-100 bg-gray-50 flex-shrink-0">
+      <div className="hidden lg:flex items-center gap-4 px-10 h-14 border-b border-border/50 bg-muted/20 shrink-0">
         {/* Search */}
         <div className="relative flex items-center max-w-xs">
-          <div className="absolute left-2.5 pointer-events-none">
+          <div className="absolute left-3 pointer-events-none text-muted-foreground">
             <SearchIcon />
           </div>
           <input
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search documents..."
-            className="h-7 pl-8 pr-3 text-sm border border-gray-200 rounded-md bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 w-64"
+            placeholder="Search documentation..."
+            className="h-9 pl-9 pr-4 text-sm border border-border rounded-xl bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 w-64 transition-all"
           />
         </div>
 
@@ -357,7 +358,7 @@ export default function HistoryPage() {
         <select
           value={contentType}
           onChange={(e) => setContentType(e.target.value)}
-          className="h-7 px-2 text-sm border border-gray-200 rounded-md bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
+          className="h-9 px-3 text-[13px] font-medium border border-border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
         >
           {CONTENT_TYPE_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -370,9 +371,9 @@ export default function HistoryPage() {
         <select
           value={profileId}
           onChange={(e) => setProfileId(e.target.value)}
-          className="h-7 px-2 text-sm border border-gray-200 rounded-md bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
+          className="h-9 px-3 text-[13px] font-medium border border-border rounded-xl bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
         >
-          <option value="">All profiles</option>
+          <option value="">All Profiles</option>
           {brandProfiles.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -381,21 +382,19 @@ export default function HistoryPage() {
         </select>
 
         {/* Status chips */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
           {STATUS_CHIPS.map((chip) => {
             const active = activeChips.has(chip.label);
             return (
               <button
                 key={chip.label}
                 onClick={() => toggleChip(chip.label)}
-                className={[
-                  "h-7 px-3 text-xs font-medium rounded-full transition-colors",
+                className={cn(
+                  "h-8 px-4 text-[11px] font-bold uppercase tracking-widest rounded-full transition-all",
                   active
-                    ? "bg-gray-900 text-white"
-                    : "border border-gray-200 text-gray-500 hover:border-gray-400",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "border border-border text-muted-foreground hover:border-primary hover:text-foreground"
+                )}
               >
                 {chip.label}
               </button>
@@ -514,33 +513,33 @@ export default function HistoryPage() {
       </div>
 
       {/* ---- Desktop column headers ---- */}
-      <div className="hidden lg:flex items-center px-8 h-9 border-b border-gray-100 bg-gray-50 flex-shrink-0">
+      <div className="hidden lg:flex items-center px-10 h-11 border-b border-border bg-muted/10 shrink-0">
         <div className="flex-1 min-w-0">
-          <span className="text-[12px] font-medium text-gray-400 uppercase tracking-wider">
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
             Document
           </span>
         </div>
-        <div className="w-[100px] flex-shrink-0 text-right">
-          <span className="text-[12px] font-medium text-gray-400 uppercase tracking-wider">
+        <div className="w-[100px] shrink-0 text-right">
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
             Score
           </span>
         </div>
-        <div className="w-[90px] flex-shrink-0 text-center">
-          <span className="text-[12px] font-medium text-gray-400 uppercase tracking-wider">
+        <div className="w-[120px] shrink-0 text-center">
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
             Status
           </span>
         </div>
-        <div className="w-[90px] flex-shrink-0">
-          <span className="text-[12px] font-medium text-gray-400 uppercase tracking-wider">
-            Profile
+        <div className="w-[120px] shrink-0">
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+            Identity Profile
           </span>
         </div>
-        <div className="w-[80px] flex-shrink-0 text-right">
-          <span className="text-[12px] font-medium text-gray-400 uppercase tracking-wider">
-            Date
+        <div className="w-[100px] shrink-0 text-right">
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+            Last Activity
           </span>
         </div>
-        <div className="w-[40px] flex-shrink-0" />
+        <div className="w-[40px] shrink-0" />
       </div>
 
       {/* ---- Document list ---- */}
@@ -610,77 +609,81 @@ export default function HistoryPage() {
                   <li key={doc.id}>
                     <Link
                       href={href}
-                      className={[
-                        "flex items-center px-4 lg:px-8 py-4 cursor-pointer hover:bg-gray-50 transition-colors",
-                        idx < docs.length - 1 ? "border-b border-gray-100" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
+                      className={cn(
+                        "flex items-center px-6 lg:px-10 py-5 cursor-pointer hover:bg-muted/50 transition-colors group",
+                        idx < docs.length - 1 ? "border-b border-border/60" : ""
+                      )}
                     >
                       {/* Col 1: Title + meta */}
-                      <div className="flex-1 min-w-0 pr-3">
-                        <p className="text-[13px] font-medium text-gray-900 truncate">
-                          {doc.title ?? "Untitled document"}
+                      <div className="flex-1 min-w-0 pr-6">
+                        <p className="text-[14px] font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                          {doc.title ?? "Untitled Document"}
                         </p>
-                        <p className="text-[12px] text-gray-400 mt-0.5 truncate">
+                        <p className="text-[11px] font-semibold text-muted-foreground mt-1 truncate uppercase tracking-wide">
                           {typeLabel}
-                          {doc.word_count ? ` · ${doc.word_count} words` : ""}
+                          {doc.word_count ? ` · ${doc.word_count} Words` : ""}
                         </p>
                       </div>
 
                       {/* Col 2: Score pill */}
-                      <div className="w-[100px] flex-shrink-0 hidden lg:flex justify-end pr-4">
+                      <div className="w-[100px] shrink-0 hidden lg:flex justify-end pr-4">
                         {score != null ? (
                           <span
-                            className={`rounded-full text-xs font-medium px-2 py-0.5 ${getScoreBadgeClasses(score)}`}
+                            className={`rounded-full text-[11px] font-bold px-2.5 py-0.5 shadow-sm border border-border/20 ${getScoreBadgeClasses(score)}`}
                           >
                             {score.toFixed(1)}
                           </span>
                         ) : (
-                          <span className="rounded-full text-xs font-medium px-2 py-0.5 bg-gray-100 text-gray-400">
+                          <span className="rounded-full text-[11px] font-bold px-2.5 py-0.5 bg-muted text-muted-foreground/50 uppercase tracking-widest border border-border/20">
+                            N/A
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Mobile score pill (hidden on desktop) */}
+                      <div className="lg:hidden shrink-0 mr-4">
+                        {score != null ? (
+                          <span
+                            className={`rounded-full text-[11px] font-bold px-2.5 py-0.5 ${getScoreBadgeClasses(score)}`}
+                          >
+                            {score.toFixed(1)}
+                          </span>
+                        ) : (
+                          <span className="rounded-full text-[11px] font-bold px-2.5 py-0.5 bg-muted text-muted-foreground/50">
                             —
                           </span>
                         )}
                       </div>
 
-                      {/* Mobile score pill (visible only on mobile) */}
-                      <div className="lg:hidden flex-shrink-0 mr-2">
-                        {score != null ? (
-                          <span
-                            className={`rounded-full text-xs font-medium px-2 py-0.5 ${getScoreBadgeClasses(score)}`}
-                          >
-                            {score.toFixed(1)}
-                          </span>
-                        ) : (
-                          <span className="rounded-full text-xs font-medium px-2 py-0.5 bg-gray-100 text-gray-400">
-                            —
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Col 3: Status pill (desktop only) */}
-                      <div className="w-[90px] flex-shrink-0 hidden lg:flex justify-center">
+                      {/* Col 3: Status pill (desktop focus) */}
+                      <div className="w-[120px] shrink-0 hidden lg:flex justify-center">
                         <span
-                          className={`rounded-full text-[12px] font-medium px-2 py-0.5 ${statusPill.classes}`}
+                          className={cn(
+                            "rounded-full text-[10px] font-bold uppercase tracking-widest px-3 py-1 border shadow-sm",
+                            statusPill.label === "Exported" ? "border-green-500/20 bg-green-500/5 text-green-600" :
+                            statusPill.label === "In progress" ? "border-blue-500/20 bg-blue-500/5 text-blue-600" :
+                            statusPill.label === "Submitted" ? "border-purple-500/20 bg-purple-500/5 text-purple-600" :
+                            "border-amber-500/20 bg-amber-500/5 text-amber-600"
+                          )}
                         >
                           {statusPill.label}
                         </span>
                       </div>
 
-                      {/* Col 4: Profile (desktop only) */}
-                      <div className="w-[90px] flex-shrink-0 hidden lg:block">
-                        <p className="text-[12px] text-gray-500 truncate">
+                      {/* Col 4: Profile (Intelligence Identity) */}
+                      <div className="w-[120px] shrink-0 hidden lg:block">
+                        <p className="text-[12px] font-medium text-foreground/80 truncate">
                           {profileName ?? "—"}
                         </p>
                       </div>
 
-                      {/* Col 5: Date (tablet+) */}
-                      <div className="w-[80px] flex-shrink-0 hidden md:block text-right">
-                        <p className="text-[12px] text-gray-400">{timeLabel}</p>
+                      {/* Col 5: Activity Timestamp */}
+                      <div className="w-[100px] shrink-0 hidden md:block text-right">
+                        <p className="text-[12px] font-medium text-muted-foreground">{timeLabel}</p>
                       </div>
 
-                      {/* Col 6: Chevron */}
-                      <div className="w-[40px] flex-shrink-0 flex justify-end">
+                      {/* Col 6: Functional Chevron */}
+                      <div className="w-[40px] shrink-0 flex justify-end text-muted-foreground group-hover:text-primary transition-colors">
                         <ChevronRight />
                       </div>
                     </Link>

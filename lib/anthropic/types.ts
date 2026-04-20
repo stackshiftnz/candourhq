@@ -30,6 +30,8 @@ export type Tone = 'formal' | 'conversational' | 'technical' | 'warm' | 'direct'
 
 export type LanguageVariant = 'en-US' | 'en-GB'
 
+export type RefinementAmbition = 'conservative' | 'transformative'
+
 export type ChangeTagType =
   | 'tightened'
   | 'made_specific'

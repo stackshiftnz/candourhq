@@ -1,9 +1,10 @@
 "use client";
 
-import { ButtonHTMLAttributes } from "react";
-import { Spinner } from "./Spinner";
+import { ButtonHTMLAttributes, forwardRef } from "react";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "brand";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "brand" | "outline";
 type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -14,51 +15,46 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-gray-900 text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100",
+    "bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.98] transition-all",
   secondary:
-    "bg-transparent border border-gray-300 text-gray-900 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800",
+    "bg-secondary text-secondary-foreground hover:opacity-90 active:scale-[0.98] transition-all",
+  outline:
+    "bg-transparent border border-muted text-foreground hover:bg-muted active:scale-[0.98] transition-all",
   ghost:
-    "bg-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200",
+    "bg-transparent text-foreground hover:bg-muted active:scale-[0.98] transition-all",
   brand:
-    "bg-brand-yellow text-brand-dark hover:brightness-95 transition-all shadow-sm font-bold",
+    "bg-[#ffd480] text-[#181818] hover:opacity-90 shadow-sm font-semibold active:scale-[0.98] transition-all",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "h-11 px-3 text-sm",
-  md: "h-11 px-4 text-sm",
-  lg: "h-12 px-5 text-base",
+  sm: "h-9 px-3 text-xs",
+  md: "h-10 px-4 text-sm",
+  lg: "h-11 px-6 text-base",
 };
 
-export function Button({
-  variant = "primary",
-  size = "md",
-  loading = false,
-  disabled,
-  children,
-  className = "",
-  ...props
-}: ButtonProps) {
-  const isDisabled = disabled || loading;
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ variant = "primary", size = "md", loading = false, disabled, children, className, ...props }, ref) => {
+    const isDisabled = disabled || loading;
 
-  return (
-    <button
-      disabled={isDisabled}
-      className={[
-        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2",
-        variantClasses[variant],
-        sizeClasses[size],
-        isDisabled ? "opacity-50 cursor-not-allowed pointer-events-none" : "",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      {...props}
-    >
-      {loading && (
-        <Spinner size="sm" />
-      )}
-      {children}
-    </button>
-  );
-}
+    return (
+      <button
+        ref={ref}
+        disabled={isDisabled}
+        className={cn(
+          "inline-flex items-center justify-center gap-2 rounded-md font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+          variantClasses[variant],
+          sizeClasses[size],
+          className
+        )}
+        {...props}
+      >
+        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+        {children}
+      </button>
+    );
+  }
+);
+
+Button.displayName = "Button";
+
+export { Button };

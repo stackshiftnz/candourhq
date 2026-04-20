@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-
 import Image from "next/image";
 import Link from "next/link";
+import { LogOut, Menu, User } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { cn } from "@/lib/utils";
 
 export function MobileHeader() {
   const router = useRouter();
@@ -18,47 +20,50 @@ export function MobileHeader() {
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-100 dark:bg-gray-950 dark:border-gray-900 z-50 flex items-center justify-between px-4 lg:hidden">
+    <header className="fixed top-0 left-0 right-0 h-14 bg-background/80 backdrop-blur-md border-b border-border z-50 flex items-center justify-between px-4 lg:hidden">
       <Link href="/dashboard" className="flex items-center gap-2">
         <Image 
-          src="/logo.png" 
+          src="/logo-icon.png" 
           alt="Candour HQ" 
-          width={100} 
+          width={32} 
           height={32} 
-          className="h-7 w-auto dark:invert-0" 
+          className="h-8 w-8" 
           priority
         />
+        <span className="font-bold tracking-tight text-foreground">Candour</span>
       </Link>
 
-      <div className="relative">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-9 h-9 rounded-full bg-brand-yellow flex items-center justify-center text-brand-dark font-bold text-xs"
-        >
-          M
-        </button>
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <div className="relative">
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs shadow-sm active:scale-95 transition-transform"
+          >
+            <User size={16} />
+          </button>
 
-        {isOpen && (
-          <>
-            <div 
-              className="fixed inset-0 z-10" 
-              onClick={() => setIsOpen(false)}
-            />
-            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-100 dark:border-gray-800 py-1 z-20">
-              <button
-                onClick={handleSignOut}
-                className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center gap-2"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                  <polyline points="16 17 21 12 16 7"></polyline>
-                  <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                Sign out
-              </button>
-            </div>
-          </>
-        )}
+          {isOpen && (
+            <>
+              <div 
+                className="fixed inset-0 z-10" 
+                onClick={() => setIsOpen(false)}
+              />
+              <div className="absolute right-0 mt-3 w-48 bg-card border border-border rounded-2xl shadow-2xl py-1 z-20 animate-in fade-in zoom-in-95 duration-200">
+                <div className="px-4 py-3 border-b border-border mb-1">
+                  <p className="text-xs font-bold text-foreground">My Account</p>
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  className="w-full text-left px-4 py-3 text-sm text-accent hover:bg-accent/10 flex items-center gap-3 transition-colors"
+                >
+                  <LogOut size={16} />
+                  <span className="font-medium">Sign out</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </header>
   );

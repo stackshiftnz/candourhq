@@ -39,3 +39,7 @@ next-env.d.ts
 _context/**
 !_context/.gitkeep
 .gstack/
+
+# testing artifacts
+/playwright-report
+/test-results

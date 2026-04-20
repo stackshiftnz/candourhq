@@ -12,6 +12,20 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { ContentType } from "@/lib/anthropic/types";
 import { Database } from "@/types/database";
+import { 
+  FileText, 
+  Upload, 
+  Edit2, 
+  Settings, 
+  X, 
+  Clipboard, 
+  Trash2, 
+  Scaling, 
+  Type, 
+  ArrowRight, 
+  Sparkles,
+  Briefcase
+} from "lucide-react";
 
 type BrandProfile = Database["public"]["Tables"]["brand_profiles"]["Row"];
 
@@ -34,19 +48,7 @@ const MOBILE_CONTENT_TYPES: { value: ContentType; label: string }[] = [
   { value: "memo", label: "Memo" },
 ];
 
-// SVGs
-const DocumentIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-);
-const UploadIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-);
-const PencilIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-);
-const SettingsIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-);
+
 
 export default function NewDocumentPage() {
   const router = useRouter();
@@ -218,55 +220,78 @@ export default function NewDocumentPage() {
     // text/plain is used
   };
 
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
   const tabs = [
-    { id: "paste", label: "Paste text", mobileLabel: "Paste", icon: <DocumentIcon /> },
-    { id: "upload", label: "Upload file", mobileLabel: "Upload", icon: <UploadIcon /> },
-    { id: "write", label: "Write here", mobileLabel: "Write", icon: <PencilIcon /> },
+    { id: "paste", label: "Paste Text", mobileLabel: "Paste", icon: <Clipboard size={16} /> },
+    { id: "upload", label: "Upload File", mobileLabel: "Upload", icon: <Upload size={16} /> },
+    { id: "write", label: "Write Here", mobileLabel: "Write", icon: <Edit2 size={16} /> },
   ];
 
   return (
-    <div className="flex flex-col h-full bg-white overflow-hidden">
-      {/* Topbar */}
-      <div className="h-[48px] flex items-center justify-between px-4 border-b border-gray-200 flex-shrink-0">
-        <div className="flex flex-col lg:flex-row lg:items-center">
-          <h1 className="text-[13px] font-medium text-gray-900 lg:mr-4">New document</h1>
-          <span className="lg:hidden text-[12px] text-gray-400">
-            {activeProfile?.name || "Loading..."}
-          </span>
+    <div className="flex flex-col h-full bg-background overflow-hidden">
+      {/* --- Top Navbar --- */}
+      <div className="h-14 flex items-center justify-between px-6 border-b border-border bg-background/50 backdrop-blur-sm z-10">
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">New Document</h1>
+            <div className="flex items-center gap-1.5 lg:hidden mt-0.5">
+               <div className="w-1 h-1 rounded-full bg-primary" />
+               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate max-w-[100px]">
+                 {activeProfile?.name || "..."}
+               </span>
+            </div>
+          </div>
+          
+          <div className="hidden lg:flex items-center gap-2 ml-4">
+             <div className="h-4 w-px bg-border" />
+             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary/10 text-secondary border border-secondary/20">
+               <Briefcase size={12} />
+               <span className="text-[10px] font-bold uppercase tracking-wider">{activeProfile?.name}</span>
+             </div>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-3">
           {/* Desktop Controls */}
-          <div className="hidden lg:flex items-center space-x-3">
-            <Select
-              className="w-[140px] h-8 py-0"
-              value={contentType}
-              onChange={(e) => {
-                setContentType(e.target.value as ContentType);
-                setIsManualType(true);
-                setDetectionState("manual");
-              }}
-              options={CONTENT_TYPES}
-            />
-            <Select
-              className="w-[160px] h-8 py-0"
-              value={activeProfileId}
-              onChange={(e) => setActiveProfileId(e.target.value)}
-              options={profiles.map(p => ({ value: p.id, label: p.name }))}
-            />
+          <div className="hidden lg:flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Analysis Type</span>
+              <Select
+                className="w-[140px] h-9"
+                value={contentType}
+                onChange={(e) => {
+                  setContentType(e.target.value as ContentType);
+                  setIsManualType(true);
+                  setDetectionState("manual");
+                }}
+                options={CONTENT_TYPES}
+              />
+            </div>
+            <div className="flex items-center gap-2 pl-2 border-l border-border/50">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Brand Profile</span>
+              <Select
+                className="w-[160px] h-9"
+                value={activeProfileId}
+                onChange={(e) => setActiveProfileId(e.target.value)}
+                options={profiles.map(p => ({ value: p.id, label: p.name }))}
+              />
+            </div>
           </div>
+          
           {/* Mobile Settings Toggle */}
           <button 
             onClick={() => setShowMobileSettings(true)}
-            className="lg:hidden p-1.5 border border-gray-200 rounded-md text-gray-500"
+            className="lg:hidden p-2 hover:bg-muted rounded-xl transition-colors text-muted-foreground"
           >
-            <SettingsIcon />
+            <Settings size={20} />
           </button>
         </div>
       </div>
 
-      {/* Mobile Content Type Chips */}
-      <div className="lg:hidden border-b border-gray-100 bg-white overflow-x-auto no-scrollbar py-2 px-4 flex items-center space-x-2 flex-shrink-0">
+      {/* --- Mobile Content Type Bar --- */}
+      <div className="lg:hidden h-14 border-b border-border bg-card flex items-center overflow-x-auto no-scrollbar px-4 gap-2">
         {MOBILE_CONTENT_TYPES.map((type) => (
           <button
             key={type.value}
@@ -276,10 +301,10 @@ export default function NewDocumentPage() {
               setDetectionState("manual");
             }}
             className={cn(
-              "whitespace-nowrap h-11 px-4 rounded-full text-[12px] transition-colors flex items-center justify-center",
+              "whitespace-nowrap h-9 px-4 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all",
               contentType === type.value
-                ? "bg-gray-900 text-white"
-                : "bg-white text-gray-600 border border-gray-200"
+                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                : "bg-background text-muted-foreground border border-border"
             )}
           >
             {type.label}
@@ -287,198 +312,220 @@ export default function NewDocumentPage() {
         ))}
       </div>
 
-      {/* Tabs */}
-      <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} className="flex-shrink-0" />
+      {/* --- Main Workspace --- */}
+      <div className="flex-1 flex flex-col min-h-0 bg-background">
+        <Tabs 
+          tabs={tabs} 
+          activeTab={activeTab} 
+          onChange={setActiveTab} 
+          className="bg-card/30 border-b border-border px-6" 
+        />
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-auto relative flex flex-col">
-        {activeTab === "paste" && (
-          <div className="flex-1 flex flex-col h-full">
-            <div className="h-[34px] bg-gray-50 border-b border-gray-200 flex items-center justify-between px-4 flex-shrink-0">
-              <div className="flex items-center space-x-4">
-                <button 
-                  className="text-[12px] text-gray-600 hover:text-gray-900 p-2 -m-2 mr-2"
-                  onClick={async () => {
-                    try {
-                      const text = await navigator.clipboard.readText();
-                      setContent(text);
-                    } catch {
-                      // Silently fail if clipboard access is denied
-                    }
-                  }}
-                >
-                  Paste
-                </button>
-                <button className="text-[12px] text-gray-600 hover:text-gray-900 p-2 -m-2 mr-2" onClick={clearContent}>Clear</button>
-                <button className="text-[12px] text-gray-600 hover:text-gray-900 p-2 -m-2 hidden sm:inline" onClick={selectAll}>Select all</button>
-              </div>
-              <span className="text-[12px] text-gray-400">{wordCount} words</span>
-            </div>
-            <textarea
-              id="paste-textarea"
-              className="flex-1 w-full p-4 resize-none focus:outline-none text-[14px] leading-relaxed placeholder:text-gray-300"
-              placeholder={`Paste your AI-generated content here\u2026\n\nBlog posts, emails, reports, proposals, press releases \u2014 any text you want to diagnose and clean.`}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onPaste={onPaste}
-            />
-          </div>
-        )}
-
-        {activeTab === "upload" && (
-          <div 
-            className="flex-1 p-4 lg:p-8 flex flex-col"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              const file = e.dataTransfer.files[0];
-              if (file) handleFileUpload(file);
-            }}
-          >
-            <div className="flex-1 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center text-center p-6 transition-colors hover:border-gray-400">
-              {isParsing ? (
-                <div className="w-full max-w-xs space-y-4">
-                  <Spinner className="w-8 h-8 mx-auto text-gray-900" />
-                  <p className="text-sm text-gray-600 font-medium">Parsing document...</p>
-                  <div className="w-full bg-gray-100 h-1 rounded-full overflow-hidden">
-                    <div className="bg-gray-900 h-full animate-progress" />
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="w-9 h-9 border border-gray-200 rounded-lg flex items-center justify-center mb-4 text-gray-400">
-                    <UploadIcon />
-                  </div>
-                  <h3 className="text-[14px] font-medium text-gray-900 mb-1">Drop your file here</h3>
-                  <p className="text-[13px] text-gray-500 max-w-[280px] mb-6">
-                    Or browse to find it on your computer. Candour reads the text &mdash; formatting is stripped on import.
-                  </p>
-                  <div className="flex items-center space-x-2 mb-8">
-                    {["DOCX", "PDF", "TXT"].map(p => (
-                      <span key={p} className="px-2 py-0.5 bg-gray-50 border border-gray-200 rounded text-[12px] text-gray-400 font-bold">{p}</span>
-                    ))}
-                  </div>
-                  <input
-                    type="file"
-                    id="file-upload"
-                    className="hidden"
-                    accept=".docx,.pdf,.txt"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileUpload(file);
+        <div className="flex-1 flex flex-col min-h-0 relative">
+          {activeTab === "paste" && (
+            <div className="flex-1 flex flex-col">
+              <div className="h-10 bg-muted/30 border-b border-border flex items-center justify-between px-6">
+                <div className="flex items-center gap-6">
+                  <button 
+                    className="text-[11px] font-bold text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors"
+                    onClick={async () => {
+                      const text = await navigator.clipboard.readText().catch(() => "");
+                      if (text) setContent(text);
                     }}
-                  />
-                  <Button 
-                    variant="secondary" 
-                    className="height-[32px] px-6 text-[13px]"
-                    onClick={() => document.getElementById("file-upload")?.click()}
                   >
-                    Browse files
-                  </Button>
-                  {parseError && (
-                    <p className="mt-4 text-sm text-red-500 bg-red-50 px-3 py-2 rounded-md border border-red-100">{parseError}</p>
-                  )}
-                </>
-              )}
+                    <Clipboard size={12} /> Paste
+                  </button>
+                  <button 
+                    className="text-[11px] font-bold text-muted-foreground hover:text-accent flex items-center gap-1.5 transition-colors" 
+                    onClick={clearContent}
+                  >
+                    <Trash2 size={12} /> Clear
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                   {detectionState === "detected" && (
+                     <span className="flex items-center gap-1 text-[10px] font-bold text-primary animate-in fade-in slide-in-from-right-2">
+                       <Sparkles size={10} /> Auto-detected
+                     </span>
+                   )}
+                   <span className="text-[11px] font-bold text-muted-foreground px-2 py-0.5 rounded-md bg-muted">
+                    {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
+                   </span>
+                </div>
+              </div>
+              <textarea
+                id="paste-textarea"
+                className="flex-1 w-full p-8 lg:p-12 resize-none focus:outline-none bg-transparent text-lg lg:text-xl font-medium leading-relaxed placeholder:text-muted-foreground/30 selection:bg-primary/20"
+                placeholder="Paste your AI content here..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+              />
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === "write" && (
-          <div className="flex-1 flex flex-col h-full">
-            <input
-              type="text"
-              placeholder="Document title (optional)"
-              className="h-[42px] px-4 border-b border-gray-100 text-[14px] font-medium focus:outline-none"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <div className="h-11 bg-gray-50 border-b border-gray-200 flex items-center px-2 space-x-1 overflow-x-auto no-scrollbar flex-shrink-0">
-               {["B", "I", "U"].map(f => (
-                 <button key={f} className="w-11 h-11 flex items-center justify-center text-[13px] font-bold text-gray-600 hover:bg-gray-200 rounded transition-colors">{f}</button>
-               ))}
-               <div className="w-[1px] h-4 bg-gray-200 mx-1" />
-               {["H1", "H2"].map(f => (
-                 <button key={f} className="h-11 px-3 flex items-center justify-center text-[12px] font-bold text-gray-600 hover:bg-gray-200 rounded transition-colors">{f}</button>
-               ))}
-               <div className="w-[1px] h-4 bg-gray-200 mx-1" />
-               <button className="w-11 h-11 flex items-center justify-center text-gray-600 hover:bg-gray-200 rounded transition-colors">
-                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-               </button>
+          {activeTab === "upload" && (
+            <div 
+              className="flex-1 p-6 lg:p-12 flex flex-col"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const file = e.dataTransfer.files[0];
+                if (file) handleFileUpload(file);
+              }}
+            >
+              <div className={cn(
+                "flex-1 border-2 border-dashed rounded-3xl flex flex-col items-center justify-center text-center p-8 transition-all duration-300",
+                isParsing ? "bg-muted/50 border-primary" : "bg-muted/20 border-border hover:border-primary/50 hover:bg-muted/30"
+              )}>
+                {isParsing ? (
+                  <div className="w-full max-w-sm space-y-6">
+                    <div className="relative w-16 h-16 mx-auto">
+                       <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                       <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-bold">Reading document...</h3>
+                      <p className="text-sm text-muted-foreground">Analysing structure and extracting text</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="max-w-md space-y-6">
+                    <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto text-primary">
+                      <Upload size={32} strokeWidth={2.5} />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-bold tracking-tight">Drop any document</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed px-8">
+                        Drag and drop your file here, or browse. We support <strong>DOCX</strong>, <strong>PDF</strong>, and <strong>TXT</strong>.
+                      </p>
+                    </div>
+                    
+                    <input
+                      type="file"
+                      id="file-upload"
+                      className="hidden"
+                      accept=".docx,.pdf,.txt"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file);
+                      }}
+                    />
+                    
+                    <Button 
+                      variant="primary" 
+                      size="lg"
+                      className="px-10 rounded-full shadow-lg shadow-primary/20"
+                      onClick={() => document.getElementById("file-upload")?.click()}
+                    >
+                      Browse Files
+                    </Button>
+                    
+                    {parseError && (
+                      <div className="p-4 rounded-2xl bg-accent/5 border border-accent/20 text-accent text-sm font-medium animate-in zoom-in-95">
+                        {parseError}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-            <textarea
-              className="flex-1 w-full p-4 resize-none focus:outline-none text-[14px] leading-relaxed placeholder:text-gray-300"
-              placeholder={`Start writing here\u2026\n\nCandour will diagnose your content as if it were AI-generated \u2014 useful for checking any writing before it goes out.`}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-            />
-          </div>
-        )}
+          )}
+
+          {activeTab === "write" && (
+            <div className="flex-1 flex flex-col">
+              <input
+                type="text"
+                placeholder="Document Title (Optional)"
+                className="h-16 px-12 border-b border-border bg-transparent text-xl font-bold placeholder:text-muted-foreground/30 focus:outline-none"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <div className="h-12 bg-muted/10 border-b border-border flex items-center px-10 gap-1 overflow-x-auto no-scrollbar">
+                 <button className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-sm font-bold">B</button>
+                 <button className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-sm italic font-serif">I</button>
+                 <div className="h-4 w-px bg-border mx-2" />
+                 <button className="h-8 px-3 flex items-center justify-center rounded-lg hover:bg-muted text-xs font-bold uppercase tracking-wider">H1</button>
+                 <button className="h-8 px-3 flex items-center justify-center rounded-lg hover:bg-muted text-xs font-bold uppercase tracking-wider">H2</button>
+              </div>
+              <textarea
+                className="flex-1 w-full p-12 resize-none focus:outline-none bg-transparent text-lg lg:text-xl font-medium leading-relaxed placeholder:text-muted-foreground/30"
+                placeholder="Start typing your masterpiece..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Word-count warnings — short or long content affects analysis quality */}
-      {wordCount > 0 && wordCount < 50 && (
-        <div className="border-t border-amber-200 bg-amber-50 px-4 py-2 text-[12px] text-amber-900 flex-shrink-0">
-          Short content (under 50 words) may produce unreliable diagnosis. Consider adding more context.
-        </div>
-      )}
-      {wordCount > 3000 && (
-        <div className="border-t border-amber-200 bg-amber-50 px-4 py-2 text-[12px] text-amber-900 flex-shrink-0">
-          Long content ({wordCount.toLocaleString()} words) will take longer to process. For best results, consider splitting into sections under 3,000 words.
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="h-[52px] sm:h-[56px] border-t border-gray-200 flex items-center justify-between px-4 bg-white flex-shrink-0">
-        <div className="flex items-center text-[12px] text-gray-500 overflow-hidden whitespace-nowrap">
-          <span className="flex-shrink-0">
-            {detectionState === "manual" ? `Set to: ${contentType.replace('_', ' ')}` : 
-             detectionState === "detected" ? `Detected: ${contentType.replace('_', ' ')}` : 
-             "Detected: auto"}
-          </span>
-          <div className="hidden sm:block w-[1px] h-3 bg-gray-200 mx-3 flex-shrink-0" />
-          <span className="hidden sm:block truncate opacity-60">
-            {activeProfile?.name || "Loading profile..."}
-          </span>
+      {/* --- Footer Status & Action --- */}
+      <div className="px-6 py-4 border-t border-border bg-card/50 flex items-center justify-between z-20">
+        <div className="flex items-center gap-6">
+           <div className="hidden sm:flex items-center gap-2">
+              <div className={cn(
+                "w-2 h-2 rounded-full",
+                detectionState === 'auto' ? "bg-border" : "bg-primary animate-pulse"
+              )} />
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-0.5 rounded-md bg-muted/50">
+                {detectionState === "manual" ? `Set: ${contentType}` : 
+                 detectionState === "detected" ? `Detected: ${contentType}` : 
+                 "System: Auto-detect"}
+              </span>
+           </div>
+           
+           {/* Progress indicators for long/short text */}
+           <div className="flex items-center gap-3">
+             {wordCount > 0 && wordCount < 50 && (
+               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-accent/5 border border-accent/20 text-[10px] font-bold text-accent animate-in fade-in slide-in-from-left-2 transition-all">
+                 <AlertCircle size={12} /> MIN. 50 WORDS RECOMMENDED
+               </div>
+             )}
+             {wordCount > 3000 && (
+                <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-primary/5 border border-primary/20 text-[10px] font-bold text-primary animate-in fade-in slide-in-from-left-2 transition-all">
+                  <AlertCircle size={12} /> LONG CONTENT
+                </div>
+             )}
+           </div>
         </div>
 
         <Button
-          className={cn(
-            "h-11 px-6 text-[13px] font-medium transition-all shadow-sm",
-            isAnalysing && "opacity-50 cursor-not-allowed"
-          )}
+          variant="brand"
+          size="lg"
+          className="rounded-full px-10 shadow-2xl shadow-primary/20 font-bold tracking-tight"
           disabled={isAnalysing || (activeTab === "paste" && !content.trim())}
           onClick={handleAnalyse}
+          loading={isAnalysing}
         >
-          {isAnalysing ? (
-             <div className="flex items-center space-x-2">
-               <Spinner className="w-3.5 h-3.5" />
-               <span className="hidden sm:inline">Analysing...</span>
-               <span className="sm:hidden">Analyse</span>
-             </div>
-          ) : (
-            <>
-              <span className="hidden sm:inline">Analyse content</span>
-              <span className="sm:hidden">Analyse</span>
-            </>
-          )}
+          {isAnalysing ? "Analysing..." : "Analyse Content"}
         </Button>
       </div>
 
-      {/* Mobile Settings Bottom Sheet Overlay */}
+      {/* --- Mobile Settings Sheet --- */}
       {showMobileSettings && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40 lg:hidden">
-           <div className="bg-white rounded-t-2xl p-6 shadow-xl animate-slide-up max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-gray-900">Document settings</h3>
-                <button onClick={() => setShowMobileSettings(false)} className="text-gray-400 p-1">
-                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <div className="fixed inset-0 z-[100] flex flex-col justify-end">
+           <div 
+             className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-300" 
+             onClick={() => setShowMobileSettings(false)}
+           />
+           <div className="relative bg-card rounded-t-[40px] px-8 pt-4 pb-12 shadow-2xl animate-in slide-in-from-bottom duration-300">
+              <div className="w-12 h-1.5 bg-border rounded-full mx-auto mb-8 cursor-grab active:cursor-grabbing" />
+              
+              <div className="flex items-center justify-between mb-10">
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-bold tracking-tight text-foreground">Configuration</h3>
+                  <p className="text-sm text-muted-foreground">Tailor the analysis engine</p>
+                </div>
+                <button 
+                  onClick={() => setShowMobileSettings(false)} 
+                  className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-border transition-colors outline-none"
+                >
+                   <X size={20} />
                 </button>
               </div>
 
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Content type</label>
+              <div className="space-y-8">
+                <div className="space-y-3">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Analysis Type</label>
                   <Select
                     value={contentType}
                     onChange={(e) => {
@@ -487,51 +534,31 @@ export default function NewDocumentPage() {
                       setDetectionState("manual");
                     }}
                     options={CONTENT_TYPES}
+                    className="h-14 text-base font-bold rounded-2xl"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Brand profile</label>
+                
+                <div className="space-y-3">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Brand Identity</label>
                   <Select
                     value={activeProfileId}
                     onChange={(e) => setActiveProfileId(e.target.value)}
                     options={profiles.map(p => ({ value: p.id, label: p.name }))}
+                    className="h-14 text-base font-bold rounded-2xl"
                   />
                 </div>
+
                 <Button 
-                  className="w-full mt-4 h-12 text-base font-bold"
+                  variant="primary"
+                  className="w-full mt-4 h-16 text-lg font-bold rounded-3xl shadow-xl shadow-primary/20"
                   onClick={() => setShowMobileSettings(false)}
                 >
-                  Apply settings
+                  Confirm Settings
                 </Button>
               </div>
            </div>
         </div>
       )}
-
-      <style jsx global>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        @keyframes progress {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        .animate-progress {
-          animation: progress 1.5s infinite linear;
-          width: 50%;
-        }
-        @keyframes slide-up {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
-        }
-        .animate-slide-up {
-          animation: slide-up 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 }

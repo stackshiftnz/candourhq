@@ -2,34 +2,50 @@ import React from "react";
 import { Spinner } from "@/components/ui/Spinner";
 import { cn } from "@/lib/utils";
 import { getScoreColour } from "@/lib/utils/score-colour";
+import { 
+  Target, 
+  Feather, 
+  ShieldAlert, 
+  ArrowRight, 
+  Percent,
+  CheckCircle2,
+  Info
+} from "lucide-react";
 
 interface ScoreRowProps {
   label: string;
   original: number;
   final: number | null;
   rescoreError?: boolean;
+  icon: React.ReactNode;
 }
 
-function ScoreRow({ label, original, final, rescoreError }: ScoreRowProps) {
+function ScoreRow({ label, original, final, rescoreError, icon }: ScoreRowProps) {
   const isPending = final === null && !rescoreError;
 
   return (
-    <div className="py-3 px-4 flex justify-between items-center border-b border-gray-100 last:border-0">
-      <span className="text-[12px] text-gray-600 font-medium">{label}</span>
+    <div className="group py-4 px-6 flex justify-between items-center border-b border-border/50 last:border-0 hover:bg-muted/30 transition-all duration-300">
       <div className="flex items-center gap-3">
-        <span className="text-[12px] text-gray-400 line-through">
+         <div className="text-muted-foreground/40 group-hover:text-primary transition-colors">
+            {icon}
+         </div>
+         <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{label}</span>
+      </div>
+      
+      <div className="flex items-center gap-4">
+        <span className="text-[12px] font-bold text-muted-foreground/30 line-through">
           {original.toFixed(1)}
         </span>
-        <span className="text-[12px] text-gray-400">→</span>
-        <div className="w-8 flex justify-end">
+        <ArrowRight size={12} className="text-muted-foreground/20" />
+        <div className="w-10 flex justify-end">
           {isPending ? (
-            <Spinner size="sm" className="text-gray-300" />
+            <Spinner size="xs" className="text-muted-foreground/50" />
           ) : rescoreError && final === null ? (
-            <span className="text-[13px] font-bold text-gray-400">
+            <span className="text-[13px] font-bold text-muted-foreground opacity-40">
               {original.toFixed(1)}
             </span>
           ) : (
-            <span className={cn("text-[13px] font-bold", getScoreColour(final!))}>
+            <span className={cn("text-[14px] font-bold tabular-nums", getScoreColour(final!))}>
               {final!.toFixed(1)}
             </span>
           )}
@@ -65,48 +81,65 @@ export function ScoreBreakdownCard({
   const isPending = finalAverage === null && !rescoreError;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+    <div className="bg-card border border-border rounded-[32px] overflow-hidden shadow-2xl shadow-black/5">
       <div className="flex flex-col">
-        <ScoreRow label="Substance" original={originalSubstance} final={finalSubstance} rescoreError={rescoreError} />
-        <ScoreRow label="Style" original={originalStyle} final={finalStyle} rescoreError={rescoreError} />
-        <ScoreRow label="Trust" original={originalTrust} final={finalTrust} rescoreError={rescoreError} />
+        <ScoreRow label="Substance" original={originalSubstance} final={finalSubstance} rescoreError={rescoreError} icon={<Target size={14} />} />
+        <ScoreRow label="Style" original={originalStyle} final={finalStyle} rescoreError={rescoreError} icon={<Feather size={14} />} />
+        <ScoreRow label="Trust" original={originalTrust} final={finalTrust} rescoreError={rescoreError} icon={<ShieldAlert size={14} />} />
 
-        <div className="py-4 px-4 bg-gray-50 flex justify-between items-center">
-          <span className="text-[12px] text-gray-900 font-bold uppercase tracking-tight">Average Score</span>
-          <div className="flex items-center gap-3">
-            <span className="text-[13px] text-gray-400 line-through">
+        {/* Global Average Sync Section */}
+        <div className="py-6 px-6 bg-muted/40 border-t border-border flex justify-between items-center relative overflow-hidden group/average">
+          <div className="flex flex-col relative z-10 transition-transform group-hover/average:translate-x-1 duration-300">
+             <span className="text-[11px] text-foreground font-bold tracking-tight mb-0.5">Average Precision</span>
+             <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Global Synchronization</span>
+             </div>
+          </div>
+          
+          <div className="flex items-center gap-6 relative z-10">
+            <span className="text-xl font-bold text-muted-foreground/20 line-through tabular-nums decoration-2">
               {originalAverage.toFixed(1)}
             </span>
-            <span className="text-[13px] text-gray-400">→</span>
-            <div className="flex items-baseline gap-1 min-w-[34px] justify-end">
+            <div className="flex items-baseline gap-1 min-w-[50px] justify-end">
               {isPending ? (
-                <Spinner size="sm" className="text-gray-300" />
+                <Spinner size="xs" className="text-muted-foreground/40" />
               ) : rescoreError && finalAverage === null ? (
-                <span className="text-[16px] font-extrabold text-gray-400">
+                <span className="text-2xl font-bold text-muted-foreground opacity-30">
                   {originalAverage.toFixed(1)}
                 </span>
               ) : (
                 <>
-                  <span className={cn("text-[16px] font-extrabold", getScoreColour(finalAverage!))}>
+                  <span className={cn("text-3xl font-bold tracking-tighter tabular-nums", getScoreColour(finalAverage!))}>
                     {finalAverage!.toFixed(1)}
                   </span>
-                  <span className="text-[10px] text-gray-400 font-bold">/10</span>
+                  <span className="text-sm font-bold text-muted-foreground/30 ml-0.5">/10</span>
                 </>
               )}
             </div>
           </div>
+          
+          {/* Subtle background flair */}
+          <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-primary/5 to-transparent pointer-events-none" />
         </div>
       </div>
 
-      <div className="p-4 bg-white">
+      {/* Footer metadata explanation */}
+      <div className="p-6 bg-card border-t border-border/50">
         {rescoreError && finalAverage === null ? (
-          <p className="text-[13px] text-amber-600 font-medium text-center">
-            Using estimated scores — recalculation failed.
-          </p>
+          <div className="flex items-center gap-3 text-accent bg-accent/5 p-4 rounded-2xl border border-accent/10">
+             <Info size={14} className="shrink-0" />
+             <p className="text-[11px] font-bold leading-tight">
+               System Recalculation Failure. Utilizing estimated threshold values.
+             </p>
+          </div>
         ) : (
-          <p className="text-[11px] text-gray-400 leading-tight">
-            Final scores are recalculated by a fresh analysis pass — more accurate than the live estimates shown during clean-up.
-          </p>
+          <div className="flex items-start gap-3 opacity-60">
+             <CheckCircle2 size={14} className="mt-0.5 text-primary" />
+             <p className="text-[11px] font-medium text-muted-foreground leading-relaxed">
+               Final analysis PASS completed. Recalculated results leverage updated linguistic vectors for maximum precision.
+             </p>
+          </div>
         )}
       </div>
     </div>

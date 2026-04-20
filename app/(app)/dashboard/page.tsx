@@ -3,6 +3,18 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { formatRelativeTime, getGreeting } from "@/lib/utils/format";
 import { DiagnosisIssue } from "@/types/database";
+import { Button as UiButton } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
+import { 
+  Plus, 
+  FileText, 
+  CheckCircle2, 
+  ArrowUpRight, 
+  AlertCircle,
+  TrendingUp,
+  ChevronRight 
+} from "lucide-react";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
 
 // ---------------------------------------------------------------------------
 // Label maps
@@ -119,7 +131,7 @@ export default async function DashboardPage() {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   // Use UTC hour — close enough for a greeting; avoids a client-side round-trip
-  const hour = now.getUTCHours();
+  // REMOVED server side hour logic for client side greeting
 
   // ------------------------------------------------------------------
   // Queries (run in parallel)
@@ -251,9 +263,12 @@ export default async function DashboardPage() {
     .slice(0, 5);
   const maxThisMonthCount = topIssuesThisMonth[0]?.[1] ?? 1;
 
-  // Greeting
-  const greeting = getGreeting(hour);
+  // Greeting is now handled client-side in DashboardHero
   const firstName = profile?.full_name?.split(" ")[0] ?? "there";
+
+  // Active brand context
+  const activeBrand = (brandProfiles ?? []).find(p => p.is_default) || (brandProfiles ?? [])[0];
+  const activeBrandName = activeBrand?.name ?? "Standard Brand";
 
   // Status line
   const statusLine =
@@ -286,294 +301,206 @@ export default async function DashboardPage() {
   // ------------------------------------------------------------------
 
   return (
-    <div className="flex flex-col h-full bg-white overflow-y-auto no-scrollbar">
-      {/* ---- Yellow Header ---- */}
-      <div className="bg-brand-yellow px-6 lg:px-10 pt-10 pb-12 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[32px] lg:text-[40px] font-bold text-brand-dark tracking-tight leading-none mb-2">
-            {greeting}, {firstName}.
-          </h1>
-          <p className="text-[15px] font-medium text-brand-dark/70">{statusLine}</p>
-        </div>
-        <Link
-          href="/new"
-          className="inline-flex items-center gap-2 h-11 px-5 text-[15px] font-bold bg-white text-brand-dark rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
-        >
-          <span className="text-xl leading-none font-medium mb-0.5">+</span>
-          <span>New document</span>
-        </Link>
-      </div>
-
-      {/* ---- Page body ---- */}
-      <div className="flex-1 px-4 lg:px-10 py-8 space-y-10 max-w-7xl">
-
-        {/* ---- Metric cards ---- */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* 1 — Documents analysed */}
-          <div className="bg-brand-yellow rounded-[20px] p-5 lg:p-6 shadow-sm">
-            <p className="text-[13px] font-semibold text-brand-dark/50 tracking-wide">
-              Analysed
-            </p>
-            <p className="text-[32px] lg:text-[40px] font-bold text-brand-dark mt-2 leading-none">
-              {docsThisMonthCount}
-            </p>
-            <p className="text-[13px] font-medium text-brand-dark/70 mt-1">+1 this week</p>
-          </div>
-
-          {/* 2 — Issues resolved */}
-          <div className="bg-[#f8f6f0] rounded-[20px] p-5 lg:p-6 shadow-sm">
-            <p className="text-[13px] font-semibold text-gray-400 tracking-wide">
-              Resolved
-            </p>
-            <p className="text-[32px] lg:text-[40px] font-bold text-brand-dark mt-2 leading-none">
-              {issuesResolved}
-            </p>
-            <p className="text-[13px] font-medium text-brand-green mt-1 tracking-tight">All time</p>
-          </div>
-
-          {/* 3 — Avg score improvement */}
-          <div className="bg-[#f8f6f0] rounded-[20px] p-5 lg:p-6 shadow-sm">
-            <p className="text-[13px] font-semibold text-gray-400 tracking-wide">
-              Improvement
-            </p>
-            <p className="text-[32px] lg:text-[40px] font-bold text-brand-dark mt-2 leading-none">
-              {avgImprovement != null
-                ? `+${avgImprovement.toFixed(1)}`
-                : "—"}
-            </p>
-            <p className="text-[13px] font-medium text-brand-pink mt-1 tracking-tight">Per document</p>
-          </div>
-
-          {/* 4 — Most common issue */}
-          <div className="bg-[#fbfaf8] border border-gray-100 rounded-[20px] p-5 lg:p-6 shadow-sm">
-            <p className="text-[13px] font-semibold text-gray-400 tracking-wide">
-              Top issue
-            </p>
-            <p className="text-xl lg:text-2xl font-bold text-brand-dark mt-3 lg:mt-4 leading-tight truncate">
-              {mostCommonEntry
-                ? (CATEGORY_LABELS[mostCommonEntry[0]] ||
-                  (mostCommonEntry[0].charAt(0).toUpperCase() + mostCommonEntry[0].slice(1)).replace(/_/g, " "))
-                : "—"}
-            </p>
-            <p className="text-[13px] font-medium text-gray-400 mt-1 tracking-tight">
-              {mostCommonEntry ? `${mostCommonPct}% of issues` : "No issues yet"}
-            </p>
-          </div>
-        </div>
-
-        {/* ---- Recent documents ---- */}
-        <div>
-          <div className="flex items-center justify-between px-2 mb-4">
-            <h2 className="text-[18px] font-bold text-brand-dark">
-              Recent documents
-            </h2>
-            <Link
-              href="/history"
-              className="text-[13px] font-semibold text-brand-dark underline decoration-gray-300 underline-offset-4 hover:decoration-brand-dark transition-colors p-2 -m-2"
-            >
-              View all
-            </Link>
-          </div>
-
-          {recentDocs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 px-4 gap-4 bg-white border border-gray-100 rounded-[20px] shadow-sm">
-              <p className="text-[17px] font-bold text-brand-dark">Nothing analysed yet.</p>
-              <Link
-                href="/new"
-                className="inline-flex items-center gap-1.5 h-12 px-6 text-[15px] font-bold bg-brand-yellow text-brand-dark rounded-xl hover:bg-[#ffcd66] transition-colors shadow-sm"
-              >
-                Analyse your first document
-              </Link>
+    <div className="flex flex-col h-full bg-background overflow-y-auto no-scrollbar">
+      {/* ---- Content Body ---- */}
+      <div className="flex-1 px-6 lg:px-10 py-12 space-y-12 max-w-7xl mx-auto w-full">
+        {/* ---- Hero / Status Header (Now Integrated) ---- */}
+        <DashboardHero 
+          userName={firstName}
+          activeBrandName={activeBrandName}
+          statusLine={statusLine}
+        />
+        
+        {/* ---- Metric Grid ---- */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Analysed */}
+          <div className="group p-6 rounded-3xl bg-card border border-border shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2 rounded-xl bg-secondary/20 text-secondary-foreground">
+                <FileText size={20} />
+              </div>
+              <TrendingUp size={16} className="text-primary" />
             </div>
-          ) : (
-            <div className="bg-white rounded-[20px] shadow-sm border border-gray-100 overflow-hidden">
-              <ul>
-                {recentDocs.map((doc, idx) => {
-                  const diag = Array.isArray(doc.diagnoses)
-                    ? doc.diagnoses[0]
-                    : doc.diagnoses;
-                  const score =
-                    diag?.average_score_final ?? diag?.average_score_original;
-                  const href = getDocumentHref(doc.status, doc.id);
-                  const typeLabel =
-                    CONTENT_TYPE_LABELS[doc.content_type] ?? doc.content_type;
-                  const timeLabel = formatRelativeTime(doc.updated_at);
-                  const showStatus = doc.status !== "exported";
-
-                  return (
-                    <li key={doc.id}>
-                      <Link
-                        href={href}
-                        className={[
-                          "flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors",
-                          idx < recentDocs.length - 1
-                            ? "border-b border-gray-100"
-                            : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                      >
-                        {/* Doc icon */}
-                        <div className="w-10 h-10 bg-[#f8f6f0] rounded-full flex items-center justify-center flex-shrink-0 text-gray-500">
-                          <DocIcon />
-                        </div>
-
-                        {/* Title + meta */}
-                        <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-4 items-center gap-4">
-                          <div className="md:col-span-2">
-                            <p className="text-[14px] font-bold text-brand-dark truncate leading-tight">
-                              {doc.title ?? "Untitled document"}
-                            </p>
-                            <p className="text-[12px] font-medium text-gray-400 mt-0.5 truncate">
-                              {typeLabel}
-                            </p>
-                          </div>
-                          <div className="hidden md:block col-span-1">
-                            <p className="text-[13px] font-medium text-gray-500">{timeLabel}</p>
-                          </div>
-                          <div className="hidden md:flex justify-end col-span-1 items-center gap-4">
-                             {showStatus && (
-                                <span className="text-[13px] font-bold text-gray-500">
-                                  {getStatusLabel(doc.status)}
-                                </span>
-                             )}
-                            {score != null ? (
-                               <span className="text-[14px] font-bold text-brand-dark">
-                                 {score.toFixed(1)}
-                               </span>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        {/* Mobile right side elements */}
-                        <div className="flex md:hidden flex-col items-end gap-1 flex-shrink-0">
-                           {score != null && (
-                             <span className="text-[14px] font-bold text-brand-dark">
-                               {score.toFixed(1)}
-                             </span>
-                           )}
-                           <span className="text-[12px] font-semibold text-gray-400 rounded bg-gray-100 px-1.5 py-0.5">
-                             {getStatusLabel(doc.status)}
-                           </span>
-                        </div>
-                        
-                        {/* Action buttons (View/Pay style) */}
-                        <div className="ml-4 flex-shrink-0 hidden sm:block">
-                           <div className="h-11 px-5 flex items-center rounded-xl text-[13px] font-bold border border-gray-200 bg-white text-brand-dark hover:bg-gray-50 transition-colors shadow-sm">
-                             View
-                           </div>
-                        </div>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        {/* ---- Two-column widget row ---- */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left — Top issues this month */}
-          <div>
-            <h2 className="text-[18px] font-bold text-brand-dark mb-4 px-2">Top issues</h2>
-            <div className="border border-gray-100 rounded-[20px] overflow-hidden bg-white shadow-sm p-6 flex flex-col items-center justify-center min-h-[260px] space-y-6">
-              {topIssuesThisMonth.length === 0 ? (
-                <p className="text-[12px] font-medium text-gray-400 text-center">
-                  No issues recorded yet. Analyse a document to see your patterns.
-                </p>
-              ) : (
-                topIssuesThisMonth.map(([category, count]) => {
-                  const priority = CATEGORY_PRIORITY[category] ?? "style";
-                  const barColour = priority === 'trust' ? 'bg-brand-pink' : priority === 'substance' ? 'bg-brand-yellow' : 'bg-brand-green';
-                  const pct = Math.max(
-                    4,
-                    Math.round((count / maxThisMonthCount) * 100)
-                  );
-                  return (
-                    <div
-                      key={category}
-                      className="flex items-center gap-4 w-full"
-                    >
-                      <p className="text-[13px] font-bold text-brand-dark w-[120px] flex-shrink-0 truncate">
-                        {CATEGORY_LABELS[category] ||
-                          (category.charAt(0).toUpperCase() + category.slice(1)).replace(/_/g, " ")}
-                      </p>
-                      <div className="flex-1 h-[22px] bg-[#f8f6f0] rounded-full overflow-hidden flex items-center pr-1">
-                        <div
-                          className={`h-full rounded-full ${barColour} transition-all`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <p className="text-[14px] font-bold text-brand-dark w-8 text-right flex-shrink-0">
-                        {count}
-                      </p>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Analysed</p>
+            <h3 className="text-3xl font-bold text-foreground mt-1">{docsThisMonthCount}</h3>
+            <p className="text-xs text-muted-foreground mt-2 font-medium">+1 this week</p>
           </div>
 
-          {/* Right — Brand profiles */}
-          <div>
-            <h2 className="text-[18px] font-bold text-brand-dark mb-4 px-2">Brand profiles</h2>
-            <div className="border border-gray-100 rounded-[20px] overflow-hidden bg-white shadow-sm">
-              <ul>
-                {(brandProfiles ?? []).map((profile, idx) => (
-                  <li
-                    key={profile.id}
-                    className={[
-                      "flex items-center justify-between px-6 py-5",
-                      idx < (brandProfiles ?? []).length - 1
-                        ? "border-b border-gray-100"
-                        : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-[15px] font-bold text-brand-dark truncate leading-tight">
-                          {profile.name}
-                        </p>
-                        {profile.is_default && (
-                          <span className="text-[12px] font-bold text-brand-dark bg-brand-yellow rounded shadow-sm px-2 py-0.5 flex-shrink-0">
-                            Active
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[13px] font-medium text-gray-500">
-                        {profile.language_variant === "en-GB"
-                          ? "British English"
-                          : "US English"}{" "}
-                        · {profile.tone}
-                      </p>
-                    </div>
-                    <Link
-                      href={`/settings/brand/${profile.id}`}
-                      className="h-11 px-4 flex items-center rounded-xl text-[13px] font-bold border border-gray-200 bg-white text-brand-dark hover:bg-gray-50 transition-colors shadow-sm flex-shrink-0 ml-4"
-                    >
-                      Edit
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              <div className="px-6 py-4 border-t border-gray-100 bg-[#fbfaf8]">
-                <Link
-                  href="/settings/brand"
-                  className="text-[14px] font-bold text-brand-dark hover:text-brand-dark/70 transition-colors flex items-center gap-2"
-                >
-                  <span className="w-5 h-5 rounded-full bg-brand-dark text-white flex items-center justify-center text-lg leading-none pb-0.5">+</span>
-                  New profile
-                </Link>
+          {/* Resolved */}
+          <div className="group p-6 rounded-3xl bg-card border border-border shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <CheckCircle2 size={20} />
               </div>
             </div>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Resolved</p>
+            <h3 className="text-3xl font-bold text-foreground mt-1">{issuesResolved}</h3>
+            <p className="text-xs text-muted-foreground mt-2 font-medium">Lifetime impact</p>
+          </div>
+
+          {/* Improvement */}
+          <div className="group p-6 rounded-3xl bg-card border border-border shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2 rounded-xl bg-accent/10 text-accent">
+                <ArrowUpRight size={20} />
+              </div>
+            </div>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Improvement</p>
+            <h3 className="text-3xl font-bold text-foreground mt-1">
+              {avgImprovement != null ? `+${avgImprovement.toFixed(1)}` : "—"}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-2 font-medium">Avg. Quality Boost</p>
+          </div>
+
+          {/* Top Issue */}
+          <div className="group p-6 rounded-3xl bg-primary text-primary-foreground shadow-xl transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2 rounded-xl bg-primary-foreground/10">
+                <AlertCircle size={20} />
+              </div>
+            </div>
+            <p className="text-[11px] font-bold opacity-70 uppercase tracking-widest">Top Issue</p>
+            <h3 className="text-lg font-bold leading-tight mt-1 line-clamp-1">
+              {mostCommonEntry ? (CATEGORY_LABELS[mostCommonEntry[0]] || mostCommonEntry[0]) : "—"}
+            </h3>
+            <p className="text-xs opacity-70 mt-2 font-medium">
+              {mostCommonEntry ? `${mostCommonPct}% of cases` : "Perfect scores"}
+            </p>
           </div>
         </div>
 
-        {/* Bottom padding for mobile nav */}
-        <div className="h-4" />
+        {/* ---- Recent Documents & Activity ---- */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Main List (Documents) */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex items-center justify-between px-2">
+              <h2 className="text-xl font-bold tracking-tight">Recent Content</h2>
+              <Link href="/history" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+                View History <ChevronRight size={14} />
+              </Link>
+            </div>
+
+            {recentDocs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 bg-muted/20 border border-dashed border-border rounded-3xl">
+                <p className="text-sm font-medium text-muted-foreground">Ready for your first analysis?</p>
+                <Link href="/new" className="mt-4">
+                  <UiButton variant="secondary" size="md">Get Started</UiButton>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentDocs.map((doc) => {
+                  const diag = Array.isArray(doc.diagnoses) ? doc.diagnoses[0] : doc.diagnoses;
+                  const score = diag?.average_score_final ?? diag?.average_score_original;
+                  const href = getDocumentHref(doc.status, doc.id);
+                  return (
+                    <Link 
+                      key={doc.id} 
+                      href={href}
+                      className="group flex items-center gap-4 p-4 rounded-2xl border border-border bg-card/50 hover:bg-card hover:shadow-lg hover:border-primary/20 transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-muted group-hover:bg-primary/10 flex items-center justify-center shrink-0 transition-colors">
+                        <FileText size={20} className="text-muted-foreground group-hover:text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-bold truncate group-hover:text-primary transition-colors">
+                          {doc.title || "Untitled Document"}
+                        </h4>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                            {CONTENT_TYPE_LABELS[doc.content_type] || doc.content_type}
+                          </span>
+                          <span className="text-[11px] text-border">•</span>
+                          <span className="text-[11px] font-medium text-muted-foreground">
+                            {formatRelativeTime(doc.updated_at)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter",
+                            doc.status === 'exported' ? "bg-green-500/10 text-green-600" : "bg-primary/5 text-primary"
+                          )}>
+                            {getStatusLabel(doc.status)}
+                          </span>
+                          {score != null && (
+                            <span className="text-sm font-bold text-foreground">
+                              {score.toFixed(1)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-primary rounded-full" 
+                              style={{ width: `${(score ?? 0) * 10}%` }} 
+                            />
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar Widgets (Issues & Brand) */}
+          <div className="space-y-8">
+            {/* Top Issues Widget */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold tracking-tight px-2">Top Issues</h2>
+              <div className="p-6 rounded-3xl bg-card border border-border shadow-sm space-y-5">
+                {topIssuesThisMonth.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4 italic">No issues detected recently.</p>
+                ) : (
+                  topIssuesThisMonth.map(([category, count]) => {
+                    const priority = CATEGORY_PRIORITY[category] ?? "style";
+                    const colorClass = priority === 'trust' ? 'bg-accent' : priority === 'substance' ? 'bg-secondary' : 'bg-green-400';
+                    const pct = Math.max(10, Math.round((count / maxThisMonthCount) * 100));
+                    return (
+                      <div key={category} className="space-y-2">
+                        <div className="flex justify-between items-center text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                          <span>{CATEGORY_LABELS[category] || category}</span>
+                          <span className="text-foreground">{count}</span>
+                        </div>
+                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className={cn("h-full rounded-full transition-all duration-1000", colorClass)}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Brand Profiles Widget */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-2">
+                <h2 className="text-xl font-bold tracking-tight">Brands</h2>
+                <Link href="/settings/brand" className="text-xs font-bold text-primary hover:underline">Manage</Link>
+              </div>
+              <div className=" rounded-3xl border border-border bg-card overflow-hidden">
+                {(brandProfiles ?? []).slice(0, 3).map((p) => (
+                  <div key={p.id} className="flex items-center gap-3 p-4 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                    <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-secondary-foreground">
+                      {p.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-foreground truncate">{p.name}</p>
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase">{p.tone}</p>
+                    </div>
+                    {p.is_default && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
     </div>
   );

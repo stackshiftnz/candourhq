@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 import { Database, UserEdit } from "@/types/database";
 import {
   CleanupParagraph as ParagraphType,
@@ -12,11 +13,12 @@ import {
 } from "@/lib/anthropic/types";
 import { CleanupParagraph } from "@/components/cleanup/CleanupParagraph";
 import { IssueQueue } from "@/components/cleanup/IssueQueue";
+import { TransformationView } from "@/components/cleanup/TransformationView";
 import { ExplanationDrawer } from "@/components/cleanup/ExplanationDrawer";
 import { HighlightText } from "@/components/analyse/HighlightText";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
-import { ArrowRight, History, User, CheckCircle, Info, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, History, User, CheckCircle, Info, Clock, ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import { submitForApproval } from "@/app/actions/team";
 import { useToast } from "@/lib/hooks/useToast";
 import { trackEvent } from "@/lib/telemetry/client";
@@ -31,6 +33,8 @@ type CleanupRecord = Database["public"]["Tables"]["cleanups"]["Row"];
 export default function CleanupPage() {
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : (Array.isArray(params.id) ? params.id[0] : "");
+  const searchParams = useSearchParams();
+  const ambition = searchParams.get("ambition") || "conservative";
   const router = useRouter();
   const supabase = createClient();
 
@@ -62,6 +66,23 @@ export default function CleanupPage() {
   }, [doc?.word_count]);
   const [requireApproval, setRequireApproval] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const expectedParagraphCount = useMemo(() => {
+    if (!doc?.original_content) return 0;
+    return doc.original_content.trim().split(/\n\s*\n/).filter(p => p.trim()).length;
+  }, [doc?.original_content]);
+
+  const streamProgress = useMemo(() => {
+    if (!polling) return 0;
+    if (expectedParagraphCount === 0) return 0;
+    // Current paragraphs / (total + 1 for buffer) * 100
+    // We use total + 1 to keep it from hitting 100% too early
+    const realProgress = (streamingParagraphs.length / (expectedParagraphCount + 1)) * 100;
+    // But we also want it to move even if no paragraphs arrived yet (elapsed time)
+    const elapsedProgress = Math.min(15, (pollingElapsed / 1000) * 2); // max 15% from time
+    return Math.max(realProgress, elapsedProgress);
+  }, [streamingParagraphs.length, expectedParagraphCount, polling, pollingElapsed]);
+
   const { toast } = useToast();
 
   // UI State
@@ -182,7 +203,7 @@ export default function CleanupPage() {
         const res = await fetch("/api/clean", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ documentId: id }),
+          body: JSON.stringify({ documentId: id, ambition }),
           signal: controller.signal,
         });
 
@@ -703,38 +724,70 @@ export default function CleanupPage() {
     return { originalCount, cleanedCount };
   }, [doc, cleanup]);
 
+  // ── Render ──────────────────────────────────────────────────────────────────
+  const { 
+    Clock, 
+    FileText, 
+    Zap, 
+    PanelLeftClose, 
+    PanelLeftOpen, 
+    PanelRightClose, 
+    PanelRightOpen,
+    AlertCircle,
+    CheckCircle2,
+    History: HistoryIcon,
+    Sparkles,
+    ChevronLeft,
+    ChevronRight,
+    ArrowRight,
+    X,
+    Layout,
+    Split,
+    RotateCcw,
+    Send,
+    Eye,
+    Settings
+  } = require("lucide-react");
+
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-white">
-        <p className="text-[15px] font-medium text-red-600 mb-4">{error}</p>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
+      <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center bg-background">
+        <div className="w-20 h-20 rounded-3xl bg-accent/10 flex items-center justify-center text-accent">
+          <AlertCircle size={40} strokeWidth={1.5} />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Critical Error</h2>
+          <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">{error}</p>
+        </div>
+        <Button onClick={() => window.location.reload()} variant="primary" className="px-10 rounded-full">
+           Re-initialise Workspace
+        </Button>
       </div>
     );
   }
 
   if (cleanupTimedOut) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-white gap-4 p-8 text-center">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className="text-gray-300">
-          <circle cx="20" cy="20" r="18" stroke="currentColor" strokeWidth="2"/>
-          <path d="M20 12v10M20 28h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-        </svg>
-        <h2 className="text-sm font-medium text-gray-900">Clean-up failed</h2>
-        <p className="text-xs text-gray-500 max-w-xs">
-          Something went wrong preparing your clean-up. Your document has been saved.
-        </p>
-        <div className="flex gap-2">
-          <Link
-            href={`/analyse/${id}`}
-            className="px-3 py-1.5 text-[13px] font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800"
-          >
-            Back to diagnosis
+      <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center bg-background">
+        <div className="w-20 h-20 rounded-3xl bg-secondary/10 flex items-center justify-center text-secondary">
+          <Clock size={40} strokeWidth={1.5} />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Worker Timeout</h2>
+          <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
+            The processing took longer than the allocated budget. Your document state has been preserved.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <Link href={`/analyse/${id}`}>
+            <Button variant="primary" className="px-8 rounded-full shadow-lg shadow-primary/20">
+              Return to Analysis
+            </Button>
           </Link>
-          <Link
-            href="/history"
-            className="px-3 py-1.5 text-[13px] font-medium border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
-          >
-            View history
+          <Link href="/history">
+            <Button variant="secondary" className="px-8 rounded-full">
+               System History
+            </Button>
           </Link>
         </div>
       </div>
@@ -742,59 +795,95 @@ export default function CleanupPage() {
   }
 
   if (loading || !doc || !diagnosis) {
-    const expectedSeconds = Math.round(cleanupTimeoutMs / 1000);
     const elapsedSeconds = Math.round(pollingElapsed / 1000);
-    const pctComplete = polling ? Math.min(95, Math.round((pollingElapsed / cleanupTimeoutMs) * 100)) : 0;
-    const stageMessage = !polling
-      ? "Loading clean-up screen..."
-      : elapsedSeconds < 15
-        ? "Reading your content..."
-        : elapsedSeconds < 40
-          ? "Applying transformations..."
-          : elapsedSeconds < 80
-            ? "Weaving in evidence prompts..."
-            : "Finalising clean-up — longer docs take a little more time...";
-
-    // Live preview while the stream delivers paragraphs. Drops the spinner UI
-    // as soon as the first paragraph arrives so users see progress, not a void.
-    if (streamRunning && streamingParagraphs.length > 0 && doc) {
+    
+    // Switch to TransformationView if no paragraphs are visible yet OR if it's still initializing
+    if (polling && streamingParagraphs.filter(Boolean).length === 0) {
       return (
-        <div className="flex flex-col h-screen bg-white">
-          <div className="h-[56px] border-b border-gray-100 flex items-center justify-between px-6 shrink-0 bg-white">
-            <div>
-              <h1 className="text-[14px] font-bold text-gray-900 leading-tight">
-                {doc.title || "Untitled Document"}
-              </h1>
-              <p className="text-[12px] text-gray-400 font-medium">
-                Generating clean-up · {streamingParagraphs.filter(Boolean).length} paragraph{streamingParagraphs.filter(Boolean).length === 1 ? "" : "s"} ready
-              </p>
+        <div className="flex-1 flex flex-col bg-background">
+          <header className="h-16 px-8 border-b border-border bg-background/50 backdrop-blur-md flex items-center justify-between shrink-0 z-50">
+            <div className="flex items-center gap-4">
+               <div className="w-8 h-8 rounded-xl bg-muted animate-pulse" />
+               <div className="flex flex-col gap-1">
+                  <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+                  <div className="h-2 w-20 bg-muted/60 rounded animate-pulse" />
+               </div>
             </div>
-            <div className="flex items-center gap-2 text-[12px] text-gray-400">
-              <Spinner size="sm" />
-              <span>{elapsedSeconds}s</span>
+          </header>
+          <div className="flex-1 flex flex-col items-center justify-center p-12">
+            <TransformationView 
+              brandProfileName={brandProfileName} 
+              progress={streamProgress} 
+              isTakingLong={pollingElapsed > 25000}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // Live preview while the stream delivers paragraphs
+    if (streamRunning && streamingParagraphs.length > 0) {
+      return (
+        <div className="flex flex-col h-full bg-background overflow-hidden selection:bg-primary/20">
+          <div className="h-16 border-b border-border flex items-center justify-between px-8 bg-background/50 backdrop-blur-md shrink-0 z-50">
+            <div className="flex items-center gap-4">
+               <div className="relative w-8 h-8">
+                  <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                  <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+               </div>
+                <div className="flex flex-col min-w-0">
+                  <h1 className="text-sm font-bold text-foreground truncate max-w-md">{doc?.title || "Refining Document"}</h1>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary animate-pulse">
+                     Refining Intelligence · {streamingParagraphs.filter(Boolean).length} / {expectedParagraphCount} Blocks Processed
+                  </p>
+               </div>
+            </div>
+            <div className="flex items-center gap-3">
+               <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-[10px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                  Elapsed: {elapsedSeconds}s
+               </div>
+               <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
             </div>
           </div>
-          <div className="h-[3px] w-full bg-gray-50 shrink-0">
-            <div className="h-full bg-teal-500 transition-all duration-500" style={{ width: `${pctComplete}%` }} />
+          
+          <div className="h-1 w-full bg-muted shrink-0 overflow-hidden">
+            <div className="h-full bg-primary transition-all duration-700 ease-in-out shadow-[0_0_10px_rgba(var(--color-primary-rgb),0.5)]" style={{ width: `${streamProgress}%` }} />
           </div>
-          <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6">
-            <article className="max-w-3xl mx-auto prose prose-sm font-serif text-[15px] leading-[1.75] text-gray-900">
+
+          <div className="flex-1 overflow-y-auto px-4 lg:px-0 py-12 lg:py-20 bg-background relative">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(var(--color-primary-rgb),0.03),transparent)] pointer-events-none" />
+            <article className="max-w-3xl mx-auto space-y-10">
               {streamingParagraphs.map((p, i) => {
                 if (!p) return (
-                  <p key={i} className="mb-4 h-5 w-3/4 bg-gray-100 rounded animate-pulse" />
+                  <div key={i} className="space-y-3 opacity-20">
+                    <div className="h-4 w-full bg-muted rounded-full" />
+                    <div className="h-4 w-[90%] bg-muted rounded-full" />
+                    <div className="h-4 w-[60%] bg-muted rounded-full" />
+                  </div>
                 );
-                const text = p.type === "clean" ? (p.cleaned || p.original) : p.original;
                 return (
-                  <p key={i} className="mb-4 animate-in fade-in duration-500">
+                  <div key={i} className="animate-in fade-in slide-in-from-bottom-2 duration-500">
                     {p.type === "pause" && (
-                      <span className="block mb-1 text-[10px] uppercase tracking-wider font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-0.5 w-fit">
-                        Pause card
-                      </span>
+                      <div className="mb-4 flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20 text-[10px] font-bold text-secondary tracking-widest uppercase w-fit">
+                        <Zap size={10} fill="currentColor" /> Structural Gap Identified
+                      </div>
                     )}
-                    {text}
-                  </p>
+                    <p className={cn(
+                      "text-lg lg:text-xl font-medium leading-relaxed tracking-tight",
+                      p.type === 'pause' ? "text-muted-foreground/60" : "text-foreground opacity-90"
+                    )}>
+                      {p.type === "clean" ? (p.cleaned || p.original) : p.original}
+                    </p>
+                  </div>
                 );
               })}
+              <div className="flex items-center justify-center py-12 opacity-40">
+                 <div className="flex gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-[bounce_1s_infinite_0ms]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-[bounce_1s_infinite_200ms]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-[bounce_1s_infinite_400ms]" />
+                 </div>
+              </div>
             </article>
           </div>
         </div>
@@ -802,46 +891,42 @@ export default function CleanupPage() {
     }
 
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-white px-6">
-        <Spinner size="lg" className="text-gray-900 mb-4" />
-        <p className="text-[15px] font-medium text-gray-900 mb-2">{stageMessage}</p>
-        {polling && (
-          <>
-            <div className="w-[220px] h-[3px] bg-gray-100 rounded-full overflow-hidden mb-2">
-              <div
-                className="h-full bg-teal-500 transition-all duration-500"
-                style={{ width: `${pctComplete}%` }}
-              />
-            </div>
-            <p className="text-[12px] text-gray-400">
-              {elapsedSeconds}s elapsed · est. up to {expectedSeconds}s for {doc?.word_count || "your"} words
-            </p>
-          </>
-        )}
+      <div className="flex-1 flex flex-col items-center justify-center p-12 bg-background">
+        <div className="relative w-24 h-24 mb-10">
+          <div className="absolute inset-0 rounded-[40%] border-[6px] border-primary/20 animate-[spin_3s_linear_infinite]" />
+          <div className="absolute inset-0 rounded-[40%] border-[6px] border-primary border-t-transparent animate-[spin_2s_linear_infinite]" />
+          <div className="absolute inset-0 flex items-center justify-center text-primary">
+            <Layers size={32} className="animate-pulse" />
+          </div>
+        </div>
+        <div className="text-center space-y-2">
+           <h2 className="text-2xl font-bold tracking-tight text-foreground">Syncing Project State</h2>
+           <p className="text-sm text-muted-foreground">Preparing your executive clean-up workspace...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white overflow-hidden">
-      {/* Topbar */}
-      <div className="h-[56px] border-b border-gray-100 flex items-center justify-between px-6 shrink-0 z-50 bg-white">
-        <div className="flex items-center gap-4">
-          <Link href="/history" className="p-2 -ml-2 text-gray-400 hover:text-gray-900 transition-colors">
-            <History size={20} />
+    <div className="flex flex-col h-full bg-background overflow-hidden selection:bg-primary/10">
+      {/* Header */}
+      <header className="h-16 px-6 shrink-0 border-b border-border bg-background/80 backdrop-blur-md flex items-center justify-between z-40">
+        <div className="flex items-center gap-4 min-w-0">
+          <Link href="/history" className="p-2 hover:bg-muted rounded-xl text-muted-foreground transition-colors group">
+            <ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
           </Link>
-          <div>
-            <h1 className="text-[14px] font-bold text-gray-900 leading-tight">
-              {doc.title ? (doc.title.length > 30 ? doc.title.substring(0, 30) + "..." : doc.title) : "Untitled Document"}
-            </h1>
-            <p className="text-[12px] text-gray-400 font-medium">
-              {cleanup?.issues_resolved || 0} of {diagnosis.issues.length} issues resolved
+          <div className="flex flex-col min-w-0">
+            <h1 className="text-sm font-bold tracking-tight text-foreground truncate max-w-[200px] sm:max-w-md">
+              {doc?.title}
               {brandProfileName ? (
-                <>
-                  {" "}·{" "}<span className="text-gray-500">{brandProfileName}</span>
-                </>
+                <span className="text-muted-foreground font-medium ml-2">· {brandProfileName}</span>
               ) : null}
-            </p>
+            </h1>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{doc?.content_type?.replace(/_/g, " ") || "DOCUMENT"}</span>
+              <span className="text-[10px] text-border">•</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Clean-up Workspace</span>
+            </div>
           </div>
         </div>
 
@@ -880,7 +965,7 @@ export default function CleanupPage() {
           >
             <Clock size={18} />
           </button>
-          <Button variant="secondary" size="sm" onClick={() => router.push(`/analyse/${id}`)}>
+          <Button variant="secondary" size="sm" onClick={() => router.push(`/analyse/${id}`)} className="rounded-full px-4">
             Diagnosis
           </Button>
           {requireApproval ? (
@@ -901,18 +986,19 @@ export default function CleanupPage() {
                 if (id) router.push(`/export/${id}`);
               }}
               disabled={progressPercent < 100}
+              className="rounded-full px-6 font-bold"
             >
               Export
             </Button>
           )}
-          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-            <User size={16} className="text-gray-400" />
+          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+            <User size={16} className="text-muted-foreground/50" />
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Progress Bar */}
-      <div className="h-[3px] w-full bg-gray-50 shrink-0">
+      <div className="h-[3px] w-full bg-muted shrink-0">
         <div
           className="h-full bg-teal-500 transition-all duration-[600ms] ease-out"
           style={{ width: `${progressPercent}%` }}
@@ -955,10 +1041,13 @@ export default function CleanupPage() {
         </div>
 
         {/* Column 1: Original (Desktop) */}
-        <div className={`hidden md:flex flex-col border-r border-gray-100 bg-white overflow-hidden transition-all duration-200 ${collapsedCols.original ? "w-[32px] shrink-0" : "flex-1 min-w-0"}`}>
-          <div className="px-2 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
+        <div className={cn(
+          "hidden md:flex flex-col border-r border-border bg-background overflow-hidden transition-all duration-200",
+          collapsedCols.original ? "w-[32px] shrink-0" : "flex-1 min-w-0"
+        )}>
+          <div className="px-2 py-4 border-b border-border bg-muted/10 flex items-center justify-between shrink-0">
             {!collapsedCols.original && (
-              <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest pl-1">Original</h2>
+              <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-2">Original Context</h2>
             )}
             <button
               onClick={() => toggleCol("original")}
@@ -1001,9 +1090,12 @@ export default function CleanupPage() {
         </div>
 
         {/* Column 2: Cleaned Version (Main) */}
-        <div className={`flex-1 flex flex-col bg-white overflow-hidden z-10 ${activeTab === "cleaned" ? "flex" : "hidden md:flex"}`}>
-          <div className="hidden md:flex px-8 py-4 border-b border-gray-50">
-            <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">Cleaned Version</h2>
+        <div className={cn(
+          "flex-1 flex flex-col bg-background overflow-hidden z-10 transition-all duration-300 shadow-2xl",
+          activeTab === "cleaned" ? "flex" : "hidden md:flex"
+        )}>
+          <div className="hidden md:flex px-8 py-4 border-b border-border bg-muted/10">
+            <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Cleaned Workspace</h2>
           </div>
           <div className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 py-6 sm:py-10 md:py-16 custom-scrollbar scroll-smooth">
             <div className="max-w-[640px] mx-auto">
@@ -1062,18 +1154,21 @@ export default function CleanupPage() {
           )}
         </div>
 
-        {/* Column 3: Queue (Desktop) */}
-        <div className={`hidden lg:flex flex-col overflow-hidden transition-all duration-200 ${collapsedCols.queue ? "w-[32px] shrink-0" : "flex-1 min-w-0"}`}>
-          <div className="px-2 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
+          {/* Column 3: Issue Queue (Desktop) */}
+        <div className={cn(
+          "hidden lg:flex flex-col overflow-hidden transition-all duration-200 bg-background border-l border-border",
+          collapsedCols.queue ? "w-[32px] shrink-0" : "flex-1 min-w-0"
+        )}>
+          <div className="px-2 py-4 border-b border-border bg-muted/10 flex items-center justify-between shrink-0">
             <button
               onClick={() => toggleCol("queue")}
-              className="flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
+              className="flex items-center justify-center w-6 h-6 rounded text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-colors shrink-0"
               title={collapsedCols.queue ? "Expand Queue" : "Collapse Queue"}
             >
               {collapsedCols.queue ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
             </button>
             {!collapsedCols.queue && (
-              <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest pl-1">Queue</h2>
+              <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-2">Critical Queue</h2>
             )}
           </div>
           {collapsedCols.queue ? (
@@ -1083,18 +1178,18 @@ export default function CleanupPage() {
               </span>
             </div>
           ) : (
-          <IssueQueue
-            issues={diagnosis.issues}
-            resolvedIssueIndices={resolvedIssueIndices}
-            activeIndex={-1}
-            onItemClick={(idx) => {
-              const pIdx = issueToParagraphMap.get(idx);
-              if (pIdx !== undefined) {
-                setActiveTab("cleaned");
-                scrollToParagraph(pIdx);
-              }
-            }}
-          />
+            <IssueQueue 
+              issues={diagnosis.issues as unknown as DiagnosisIssue[]}
+              resolvedIssueIndices={resolvedIssueIndices}
+              activeIssueIndex={null}
+              onIssueClick={(idx) => {
+                const pIdx = issueToParagraphMap.get(idx);
+                if (pIdx !== undefined) {
+                  setActiveTab("cleaned");
+                  scrollToParagraph(pIdx);
+                }
+              }}
+            />
           )}
         </div>
 
@@ -1110,11 +1205,11 @@ export default function CleanupPage() {
 
         {cleanup && (
           <RevisionHistoryDrawer
-            cleanupId={cleanup.id}
-            open={showHistoryDrawer}
-            onClose={() => setShowHistoryDrawer(false)}
-            onRestore={handleRestoreRevision}
-          />
+          cleanupId={cleanup.id}
+          isOpen={showHistoryDrawer}
+          onClose={() => setShowHistoryDrawer(false)}
+          onRestore={handleRestoreRevision}
+        />
         )}
 
       </div>

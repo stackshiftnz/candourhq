@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 import { Database } from "@/types/database";
 import { DiagnosisResponse, DiagnosisIssue } from "@/lib/anthropic/types";
 import { HighlightText } from "@/components/analyse/HighlightText";
@@ -11,11 +12,29 @@ import { SignalBlock } from "@/components/analyse/SignalBlock";
 import { IssueCard } from "@/components/analyse/IssueCard";
 import { Spinner } from "@/components/ui/Spinner";
 import { Button } from "@/components/ui/Button";
+import { ScanningView } from "@/components/analyse/ScanningView";
+import { CleanupAmbitionModal } from "@/components/analyse/CleanupAmbitionModal";
 import { useToast } from "@/lib/hooks/useToast";
 import { Tabs } from "@/components/ui/Tabs";
 import { getWordCount } from "@/lib/utils/word-count";
 import { trackEvent } from "@/lib/telemetry/client";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { 
+  Clock, 
+  FileText, 
+  Zap, 
+  AlertCircle,
+  CheckCircle2,
+  History as HistoryIcon,
+  Sparkles,
+  ArrowRight,
+  X,
+  Activity,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2,
+  Minimize2
+} from "lucide-react";
+
 
 type Document = Database["public"]["Tables"]["documents"]["Row"];
 type Diagnosis = Database["public"]["Tables"]["diagnoses"]["Row"];
@@ -38,7 +57,10 @@ export default function DiagnosisPage() {
   const [takingLong, setTakingLong] = useState(false);
   const [analysisState, setAnalysisState] = useState<"loading" | "error" | "done">("loading");
   const [mobileSheetIssue, setMobileSheetIssue] = useState<DiagnosisIssue | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [collapsedCols, setCollapsedCols] = useState({ original: false, scores: false, issues: false });
+  const [showAmbitionModal, setShowAmbitionModal] = useState(false);
   const toggleCol = (col: "original" | "scores" | "issues") =>
     setCollapsedCols((prev) => ({ ...prev, [col]: !prev[col] }));
 
@@ -191,6 +213,22 @@ export default function DiagnosisPage() {
     return () => clearInterval(timer);
   }, [doc, id, supabase, fetchDocument, handleError, POLLING_TIMEOUT_MS]);
 
+  // Simulated progress logic
+  useEffect(() => {
+    if (analysisState !== "loading" || !loading) return;
+    
+    const timer = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 99) return prev;
+        // Faster at start, slower as it nears completion
+        const increment = prev < 30 ? 2 : prev < 70 ? 0.8 : 0.2;
+        return Math.min(prev + (Math.random() * increment), 99);
+      });
+    }, 200);
+    
+    return () => clearInterval(timer);
+  }, [analysisState, loading]);
+
   const handleRetry = useCallback(async () => {
     pollingStartTime.current = Date.now();
     setAnalysisState("loading");
@@ -213,7 +251,13 @@ export default function DiagnosisPage() {
 
   const handleStartCleanup = async () => {
     if (!doc) return;
+    setShowAmbitionModal(true);
+  };
+
+  const handleConfirmCleanup = async (ambition: string) => {
+    if (!doc) return;
     setIsCleaning(true);
+    setShowAmbitionModal(false);
 
     // Clean page owns the /api/clean fetch lifecycle so users see paragraphs
     // stream in on the destination screen instead of waiting on a spinner here.
@@ -224,7 +268,7 @@ export default function DiagnosisPage() {
         .from("documents")
         .update({ status: "cleaning" })
         .eq("id", id);
-      router.push(`/clean/${id}`);
+      router.push(`/clean/${id}?ambition=${ambition}`);
     } catch (e) {
       console.error("Cleanup navigation failed", e);
       setIsCleaning(false);
@@ -287,34 +331,30 @@ export default function DiagnosisPage() {
 
   if (loading || (doc?.status === "analysing" || doc?.status === "pending")) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-6">
-        <div className="w-16 h-16 relative">
-          <Spinner size="lg" className="text-gray-900 dark:text-white" />
-          <div className="absolute inset-0 flex items-center justify-center animate-pulse">
-            <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full" />
+      <div className="flex-1 flex flex-col bg-background">
+        {/* Simplified Header for Loading State */}
+        <header className="h-16 px-6 border-b border-border bg-background/50 backdrop-blur-md flex items-center justify-between shrink-0 z-30">
+          <div className="flex items-center gap-4">
+             <div className="w-8 h-8 rounded-xl bg-muted animate-pulse" />
+             <div className="flex flex-col gap-1">
+                <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+                <div className="h-3 w-20 bg-muted/60 rounded animate-pulse" />
+             </div>
           </div>
-        </div>
-        <div className="text-center">
-          <h2 className="text-[15px] font-medium text-gray-900 dark:text-white">
-            Analysing your content...
-          </h2>
-          <p className="text-[13px] text-gray-500 mt-1">
-            {takingLong ? "This is taking a little longer than usual — almost there." : "Checking for style, substance, and trust."}
-          </p>
-        </div>
+          <div className="flex items-center gap-3">
+             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-muted/30">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Scanning Context...</span>
+             </div>
+          </div>
+        </header>
 
-        {/* Loading Skeletons */}
-        <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="flex flex-col h-full space-y-4 bg-white dark:bg-gray-900/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 animate-pulse">
-              <div className="flex items-center justify-between">
-                <div className="h-4 w-24 bg-gray-100 dark:bg-gray-800 rounded" />
-                <Spinner size="sm" />
-              </div>
-              <div className="flex-1 h-32 bg-gray-50/50 dark:bg-gray-950/50 rounded-xl" />
-              <div className="h-10 bg-gray-50/50 dark:bg-gray-950/50 rounded-xl" />
-            </div>
-          ))}
+        <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12">
+          <ScanningView 
+            brandProfileName={brandProfileName} 
+            progress={progress} 
+            isTakingLong={takingLong}
+          />
         </div>
       </div>
     );
@@ -334,6 +374,8 @@ export default function DiagnosisPage() {
       </div>
     );
   }
+
+
 
   const data: DiagnosisResponse = {
     headline_finding: diagnosis.headline_finding,
@@ -368,320 +410,386 @@ export default function DiagnosisPage() {
     issues: diagnosis.issues as unknown as DiagnosisIssue[]
   };
 
-  const wordCount = getWordCount(doc.original_content || "");
+  const currentWordCount = getWordCount(doc.original_content || "");
   const lowestSignal = Object.entries(data.signals).reduce((prev, curr) => {
     return curr[1].score < prev[1].score ? curr : prev;
-  });
+  }, Object.entries(data.signals)[0]);
 
   const issueCount = data.issues.length;
   const estimatedMinutes = Math.max(1, Math.ceil((issueCount * 25) / 60));
   const effortLabel = issueCount === 0
-    ? "No issues flagged"
-    : `${issueCount} ${issueCount === 1 ? "issue" : "issues"} · Est. ${estimatedMinutes} min to clean`;
+    ? "Perfect Score"
+    : `${issueCount} ${issueCount === 1 ? "Issue" : "Issues"} • ~${estimatedMinutes}m fix`;
 
   return (
-    <div className="h-screen flex flex-col bg-white overflow-hidden">
-      {/* Screen reader announcement of analysis result */}
-      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {issueCount === 0
-          ? "Diagnosis complete. No issues flagged."
-          : `Diagnosis complete. ${issueCount} ${issueCount === 1 ? "issue" : "issues"} flagged. Estimated ${estimatedMinutes} minutes to clean.`}
+    <div className="h-full flex flex-col bg-background overflow-hidden selection:bg-primary/20">
+      {/* Screen reader announcement */}
+      <div className="sr-only" role="status" aria-live="polite">
+        Diagnosis complete. {effortLabel}.
       </div>
-      {/* Topbar */}
-      <header className="h-[48px] px-6 border-b border-gray-100 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          <h1 className="text-[13px] font-medium text-gray-900 truncate max-w-[160px] sm:max-w-[300px]">
-            {doc.title}
-          </h1>
-          <div className="hidden sm:flex items-center gap-2 text-[12px] text-gray-400">
-            <span className="capitalize">{doc.content_type.replace(/_/g, " ")}</span>
-            <span>·</span>
-            <span>{wordCount} words</span>
-            <span>·</span>
-            <span className="uppercase">{doc.language_variant}</span>
-            {brandProfileName ? (
-              <>
-                <span>·</span>
-                <span className="text-gray-500 font-medium">{brandProfileName}</span>
-              </>
-            ) : null}
+
+      {/* --- Page Header --- */}
+      <header className="h-16 px-6 border-b border-border bg-background/50 backdrop-blur-md flex items-center justify-between shrink-0 z-30">
+        <div className="flex items-center gap-4 min-w-0">
+          <Link href="/history" className="p-2 hover:bg-muted rounded-xl text-muted-foreground transition-colors group">
+             <ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
+          </Link>
+          <div className="flex flex-col min-w-0">
+             <h1 className="text-sm font-bold tracking-tight text-foreground truncate max-w-[200px] sm:max-w-md">
+               {doc.title}
+             </h1>
+             <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
+                <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{doc.content_type.replace(/_/g, " ")}</span>
+                <span className="text-[10px] text-border">•</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{currentWordCount} Words</span>
+             </div>
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Link href="/history">
-            <Button variant="secondary" size="sm" className="hidden lg:flex">History</Button>
-          </Link>
-          <Button variant="primary" size="sm" onClick={handleStartCleanup}>
-            {issueCount === 0 ? "Skip to export" : "Start clean-up"}
+        <div className="flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-1 bg-muted/50 px-3 py-1.5 rounded-full border border-border">
+              <HistoryIcon size={14} className="text-foreground/60" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/70">Analysed {new Date(doc.created_at).toLocaleDateString()}</span>
+          </div>
+          <Button 
+            variant="brand" 
+            size="md" 
+            className="rounded-full px-6 font-bold tracking-tight shadow-md transition-all active:scale-[0.98]"
+            onClick={handleStartCleanup}
+          >
+            {issueCount === 0 ? "Project Export" : "Begin Clean-up"}
+            <ArrowRight size={16} className="ml-2" />
           </Button>
         </div>
       </header>
 
-      {/* Main Content Layout */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      {/* --- Three-Column Split --- */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         
-        {/* Mobile Tabs */}
-        <div className="lg:hidden shrink-0">
+        {/* Mobile Tabs (Clean Segment Design) */}
+        <div className="lg:hidden shrink-0 border-b border-border bg-card/50">
           <Tabs 
             tabs={[
-              { id: "scores", label: "Scores" },
-              { id: "issues", label: `Issues (${data.issues.length})` },
-              { id: "original", label: "Original" }
+              { id: "scores", label: "Analysis" },
+              { id: "issues", label: `Insights (${data.issues.length})` },
+              { id: "original", label: "Context" }
             ]}
             activeTab={activeTab}
             onChange={setActiveTab}
+            className="px-4"
           />
         </div>
 
-        {/* COLUMN 1: ORIGINAL */}
-        <div className={[
-          "lg:border-r border-gray-100 flex flex-col overflow-hidden bg-white transition-all duration-200",
-          activeTab === "original" ? "flex flex-1" : "hidden lg:flex",
-          collapsedCols.original ? "lg:w-[32px] lg:flex-none lg:shrink-0" : "lg:flex-1 lg:min-w-0"
-        ].join(" ")}>
-          <div className="px-2 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
-            {!collapsedCols.original && (
-              <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider pl-1">Original</h2>
-            )}
-            <button
-              onClick={() => toggleCol("original")}
-              className="hidden lg:flex ml-auto items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              title={collapsedCols.original ? "Expand Original" : "Collapse Original"}
-            >
-              {collapsedCols.original ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-            </button>
-          </div>
+        {/* --- COLUMN 1: CONTEXT (Original Text) --- */}
+        <div className={cn(
+          "flex flex-col overflow-hidden bg-background transition-all duration-500 border-r border-border relative shrink-0 lg:shrink",
+          activeTab === "original" ? "flex flex-[2]" : "hidden lg:flex",
+          collapsedCols.original ? "lg:w-12 lg:flex-none" : "lg:flex-[1.2] lg:min-w-0"
+        )}>
           {collapsedCols.original ? (
-            <div className="flex-1 flex items-center justify-center overflow-hidden">
-              <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest whitespace-nowrap -rotate-90">
-                Original
-              </span>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar" ref={originalColumnRef}>
-              <HighlightText
-                content={doc.original_content || ""}
-                issues={data.issues}
-                onHighlightClick={scrollToIssue}
-                hoveredIssueId={hoveredIssueId}
-                onHoverIssue={setHoveredIssueId}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* COLUMN 2: SCORES */}
-        <div className={[
-          "lg:border-r border-gray-100 flex flex-col overflow-hidden bg-gray-50 transition-all duration-200",
-          activeTab === "scores" ? "flex flex-1" : "hidden lg:flex",
-          collapsedCols.scores ? "lg:w-[32px] lg:flex-none lg:shrink-0" : "lg:flex-1 lg:min-w-0"
-        ].join(" ")}>
-          <div className="px-2 py-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-            {!collapsedCols.scores && (
-              <>
-                <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider pl-1">Analysis</h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-[15px] font-bold text-gray-900">{diagnosis.average_score_original}</span>
-                  <span className="text-[12px] text-gray-400">/10</span>
-                </div>
-              </>
-            )}
-            <button
-              onClick={() => toggleCol("scores")}
-              className="hidden lg:flex ml-auto items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              title={collapsedCols.scores ? "Expand Analysis" : "Collapse Analysis"}
+            <button 
+              onClick={() => toggleCol("original")}
+              className="flex-1 flex flex-col items-center justify-center gap-6 hover:bg-muted/50 transition-all group/ribbon py-10"
             >
-              {collapsedCols.scores ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-            </button>
-          </div>
-          {collapsedCols.scores ? (
-            <div className="flex-1 flex items-center justify-center overflow-hidden">
-              <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest whitespace-nowrap -rotate-90">
-                Analysis
-              </span>
-            </div>
-          ) : (
-          <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar">
-            {/* Headline Finding Card */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 shadow-sm">
-              <h3 className="text-[12px] font-bold text-gray-900 uppercase mb-2">Main Finding</h3>
-              <p className="text-[13px] text-gray-700 leading-snug">
-                {data.headline_finding}
-              </p>
-            </div>
-
-            {/* Signal Blocks */}
-            <div className="space-y-4">
-              {Object.entries(data.signals).map(([name, signal]) => {
-                const count = data.issues.filter(i => i.priority === name).length;
-                return (
-                  <SignalBlock
-                    key={name}
-                    name={name}
-                    signal={signal}
-                    defaultExpanded={name === lowestSignal[0]}
-                    issueCount={count}
-                    onViewIssues={() => {
-                      const firstMatchIdx = data.issues.findIndex(i => i.priority === name);
-                      if (firstMatchIdx < 0) return;
-                      const issue = data.issues[firstMatchIdx];
-                      const issueId = `${issue.priority}-${issue.char_start}-${issue.char_end}`;
-                      setActiveTab("issues");
-                      // Slight delay so mobile tab transition completes before scroll
-                      setTimeout(() => scrollToIssue(issueId), 50);
-                    }}
-                  />
-                );
-              })}
-            </div>
-          </div>
-          )}
-        </div>
-
-        {/* COLUMN 3: ISSUES */}
-        <div className={[
-          "flex flex-col overflow-hidden bg-white transition-all duration-200",
-          activeTab === "issues" ? "flex flex-1" : "hidden lg:flex",
-          collapsedCols.issues ? "lg:w-[32px] lg:flex-none" : "lg:flex-1"
-        ].join(" ")}>
-          <div className="px-2 py-4 border-b border-gray-50 flex items-center justify-between shrink-0">
-            <button
-              onClick={() => toggleCol("issues")}
-              className="hidden lg:flex items-center justify-center w-6 h-6 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
-              title={collapsedCols.issues ? "Expand Issues" : "Collapse Issues"}
-            >
-              {collapsedCols.issues ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-            </button>
-            {!collapsedCols.issues && (
-              <>
-                <h2 className="text-[12px] font-bold text-gray-400 uppercase tracking-wider pl-1">Issues</h2>
-                <span className="text-[12px] text-gray-400 font-medium">{data.issues.length} flagged</span>
-              </>
-            )}
-          </div>
-          {collapsedCols.issues ? (
-            <div className="flex-1 flex items-center justify-center overflow-hidden">
-              <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest whitespace-nowrap rotate-90">
-                Issues
-              </span>
-            </div>
-          ) : (
-          <>
-          <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar" ref={issuesColumnRef}>
-            {issueCount === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-12 px-4">
-                <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4 text-emerald-600">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                </div>
-                <h3 className="text-[15px] font-semibold text-gray-900 mb-1">This content is already brand-aligned</h3>
-                <p className="text-[13px] text-gray-500 leading-relaxed max-w-[280px]">
-                  No substance, style, or trust issues flagged. You can skip clean-up and go straight to export.
-                </p>
+              <div className="w-8 h-8 rounded-full bg-foreground/5 flex items-center justify-center text-foreground/40 group-hover/ribbon:text-foreground transition-colors">
+                <FileText size={16} />
               </div>
-            ) : (
-              <div className="space-y-8">
-              {["trust", "substance", "style"].map(priority => {
-                const priorityIssues = data.issues.filter(i => i.priority === priority);
-                if (priorityIssues.length === 0) return null;
+              <span className="text-[10px] font-black text-foreground/40 uppercase tracking-[0.25em] -rotate-90 whitespace-nowrap group-hover/ribbon:text-foreground transition-colors">Context</span>
+            </button>
+          ) : (
+            <>
+              <div className="h-10 px-4 border-b border-border bg-muted/10 flex items-center justify-between shrink-0 font-bold text-[10px] uppercase tracking-widest text-foreground/70">
+                <span>Original Context</span>
+                <button
+                  onClick={() => toggleCol("original")}
+                  className="hidden lg:flex ml-auto p-1.5 hover:bg-muted rounded-lg transition-colors text-foreground/40"
+                  title="Collapse Context"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-8 lg:px-12 py-10 custom-scrollbar scroll-smooth" ref={originalColumnRef}>
+                 <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <HighlightText
+                    content={doc.original_content || ""}
+                    issues={data.issues}
+                    onHighlightClick={scrollToIssue}
+                    hoveredIssueId={hoveredIssueId}
+                    onHoverIssue={setHoveredIssueId}
+                  />
+                 </div>
+              </div>
+            </>
+          )}
+        </div>
 
-                return (
-                  <div key={priority}>
-                    <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <div className={`w-1.5 h-1.5 rounded-full ${
-                        priority === 'trust' ? 'bg-red-500' : priority === 'substance' ? 'bg-amber-500' : 'bg-pink-500'
-                      }`} />
-                      {priority} issues
-                    </h3>
-                    <div className="space-y-2">
-                      {priorityIssues.map((issue, idx) => (
-                        <IssueCard
-                          key={idx}
-                          issue={issue}
-                          onCardClick={scrollToHighlight}
-                          isHovered={hoveredIssueId === `${issue.priority}-${issue.char_start}-${issue.char_end}`}
-                        />
-                      ))}
+        {/* --- COLUMN 2: SCORE REPORT (Intelligence Cockpit) --- */}
+        <div className={cn(
+          "flex flex-col overflow-hidden bg-muted/5 transition-all duration-500 border-r border-border relative",
+          activeTab === "scores" ? "flex flex-1" : "hidden lg:flex",
+          collapsedCols.scores ? "lg:w-12 lg:flex-none" : "lg:flex-1 lg:min-w-0"
+        )}>
+          {collapsedCols.scores ? (
+            <button 
+              onClick={() => toggleCol("scores")}
+              className="flex-1 flex flex-col items-center justify-center gap-6 hover:bg-muted/50 transition-all group/ribbon py-10"
+            >
+              <div className="w-8 h-8 rounded-full bg-foreground/5 flex items-center justify-center text-foreground/40 group-hover/ribbon:text-foreground transition-colors">
+                <Activity size={16} />
+              </div>
+              <span className="text-[10px] font-black text-foreground/40 uppercase tracking-[0.25em] -rotate-90 whitespace-nowrap group-hover/ribbon:text-foreground transition-colors">Report</span>
+            </button>
+          ) : (
+            <div className="flex-1 flex flex-col relative">
+              {/* Sticky Inner Cockpit Wrapper */}
+              <div className="sticky top-0 h-full flex flex-col">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 pointer-events-none opacity-50" />
+                
+                <div className="h-10 px-4 border-b border-border bg-background/80 backdrop-blur-sm flex items-center justify-between shrink-0 z-10">
+                  <div className="flex items-center">
+                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-foreground/70">Intelligence Report</span>
+                    <div className="flex items-center gap-3 ml-2">
+                      <span className="text-foreground text-[18px] font-black tracking-tighter transition-all group-hover:scale-110">{diagnosis.average_score_original}</span>
+                      <span className="text-[10px] font-black text-foreground/30 shrink-0">/ 10</span>
                     </div>
                   </div>
-                );
-              })}
+                  <button
+                    onClick={() => toggleCol("scores")}
+                    className="hidden lg:flex p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground/40"
+                    title="Collapse Report"
+                  >
+                    <Minimize2 size={14} />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-6 py-8 custom-scrollbar space-y-8 relative z-10">
+                  <div className="relative group/finding">
+                    <div className="absolute inset-0 bg-primary/5 blur-3xl opacity-0 group-hover/finding:opacity-100 transition-opacity duration-1000" />
+                    <div className="relative bg-background/40 backdrop-blur-md rounded-[32px] border border-border/50 p-7 shadow-2xl shadow-black/5 space-y-5 transition-all duration-500 hover:border-primary/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">
+                          <Sparkles size={14} className="text-primary animate-pulse" /> Executive Finding
+                        </div>
+                        <div className="px-2 py-1 rounded-full bg-primary/5 text-[9px] font-black uppercase tracking-wider text-primary border border-primary/10">
+                          Audit Verified
+                        </div>
+                      </div>
+                      <p className="text-[15px] font-semibold leading-relaxed text-foreground/90 italic tracking-tight">
+                        &ldquo;{data.headline_finding}&rdquo;
+                      </p>
+                      <div className="pt-2 flex items-center gap-2 text-[10px] font-bold text-muted-foreground/40 italic">
+                         Expert diagnosis complete — {data.issues.length} focal points identified.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {Object.entries(data.signals).map(([name, signal]) => {
+                      const count = data.issues.filter(i => i.priority === name).length;
+                      return (
+                        <SignalBlock
+                          key={name}
+                          name={name}
+                          signal={signal}
+                          defaultExpanded={name === lowestSignal[0]}
+                          issueCount={count}
+                          isActive={activeCategory === name}
+                          onViewIssues={() => {
+                            if (activeCategory === name) {
+                              setActiveCategory(null);
+                            } else {
+                              const firstIdx = data.issues.findIndex(i => i.priority === name);
+                              if (firstIdx >= 0) {
+                                const issue = data.issues[firstIdx];
+                                const issueId = `${issue.priority}-${issue.char_start}-${issue.char_end}`;
+                                setActiveTab("issues");
+                                setActiveCategory(name);
+                                setTimeout(() => scrollToIssue(issueId), 100);
+                              } else {
+                                setActiveCategory(name);
+                              }
+                            }
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-          <div className="hidden lg:flex items-center justify-between px-6 py-3 border-t border-gray-100 bg-white shrink-0">
-            <span className="text-[12px] font-medium text-gray-500">{effortLabel}</span>
-            <Button variant="primary" size="sm" onClick={handleStartCleanup}>
-              {issueCount === 0 ? "Skip to export" : "Start clean-up"}
-            </Button>
-          </div>
-          </>
+            </div>
           )}
         </div>
 
+        {/* --- COLUMN 3: INSIGHTS (Issue List) --- */}
+        <div className={cn(
+          "flex flex-col overflow-hidden bg-background transition-all duration-500 relative shrink-0 lg:shrink",
+          activeTab === "issues" ? "flex flex-1" : "hidden lg:flex",
+          collapsedCols.issues ? "lg:w-12 lg:flex-none" : "lg:flex-1 lg:min-w-0"
+        )}>
+          {collapsedCols.issues ? (
+            <button 
+              onClick={() => toggleCol("issues")}
+              className="flex-1 flex flex-col items-center justify-center gap-6 hover:bg-muted/50 transition-all group/ribbon py-10"
+            >
+              <div className="w-8 h-8 rounded-full bg-foreground/5 flex items-center justify-center text-foreground/40 group-hover/ribbon:text-foreground transition-colors">
+                <AlertCircle size={16} />
+              </div>
+              <span className="text-[10px] font-black text-foreground/40 uppercase tracking-[0.25em] -rotate-90 whitespace-nowrap group-hover/ribbon:text-foreground transition-colors">Insights</span>
+            </button>
+          ) : (
+            <>
+              <div className="h-10 px-4 border-b border-border bg-muted/10 flex items-center justify-between shrink-0">
+                 <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleCol("issues")}
+                      className="hidden lg:flex p-1.5 hover:bg-muted rounded-lg transition-colors text-foreground/40"
+                      title="Collapse Insights"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-foreground/70">Critical Insights</span>
+                 </div>
+                 <div className="px-2 py-0.5 rounded-full bg-primary text-white text-[9px] font-black uppercase tracking-wider">{data.issues.length} Flagged</div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto px-6 py-8 custom-scrollbar scroll-smooth" ref={issuesColumnRef}>
+                {issueCount === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-6">
+                    <div className="w-24 h-24 rounded-[40%] bg-green-500/10 flex items-center justify-center text-green-500 border border-green-500/20">
+                       <CheckCircle2 size={40} strokeWidth={1.5} />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-bold tracking-tight">Enterprise Ready</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+                        Your content meets all quality and brand standards. You're ready for publication.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-12 pb-20">
+                    {["trust", "substance", "style"].map(priority => {
+                      const priorityIssues = data.issues.filter(i => i.priority === priority);
+                      if (priorityIssues.length === 0) return null;
+                      return (
+                        <div key={priority} className="space-y-4">
+                          <div className="flex items-center gap-3">
+                             <div className={cn(
+                               "h-1.5 w-1.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.3)]",
+                               priority === 'trust' ? 'bg-accent' : priority === 'substance' ? 'bg-secondary' : 'bg-green-500'
+                             )} />
+                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/60">
+                               {priority} Issues
+                             </h4>
+                          </div>
+                          <div className={cn(
+                            "space-y-3 transition-opacity duration-300",
+                            activeCategory && activeCategory !== priority ? "opacity-30 grayscale-[0.5]" : "opacity-100"
+                          )}>
+                            {priorityIssues.map((issue, idx) => (
+                              <IssueCard
+                                key={`${issue.char_start}-${idx}`}
+                                issue={issue}
+                                onCardClick={scrollToHighlight}
+                                isHovered={hoveredIssueId === `${issue.priority}-${issue.char_start}-${issue.char_end}`}
+                                isActive={activeCategory === priority}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Mobile persistent bottom CTA */}
-      <div className="lg:hidden shrink-0 border-t border-gray-100 bg-white px-4 py-3 flex items-center justify-between gap-3">
-        <span className="text-[12px] font-medium text-gray-500 truncate">{effortLabel}</span>
-        <Button variant="primary" size="sm" onClick={handleStartCleanup}>
-          {issueCount === 0 ? "Skip to export" : "Start clean-up"}
+      {/* --- Mobile Fixed CTA --- */}
+      <div className="lg:hidden shrink-0 border-t border-border bg-card/80 backdrop-blur-lg px-6 py-4 flex items-center justify-between gap-4 z-30">
+        <div className="flex flex-col">
+           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/60">Quality Score</span>
+           <span className="text-lg font-black text-foreground">{diagnosis.average_score_original}<span className="text-[10px] font-bold opacity-30 ml-1">/ 10</span></span>
+        </div>
+        <Button 
+          variant="brand" 
+          className="rounded-full px-8 font-bold shadow-xl shadow-primary/20"
+          onClick={handleStartCleanup}
+        >
+          {issueCount === 0 ? "Project Export" : "Fix Issues"}
         </Button>
       </div>
 
-      {/* Mobile bottom sheet for highlight taps */}
+      {/* --- Mobile Issue Detail Overlay --- */}
       {mobileSheetIssue && (
-        <>
-          <div
-            className="lg:hidden fixed inset-0 bg-black/30 z-40 animate-in fade-in duration-200"
-            onClick={() => setMobileSheetIssue(null)}
-          />
-          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-xl p-5 animate-in slide-in-from-bottom duration-300">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  mobileSheetIssue.priority === "trust" ? "bg-red-500" :
-                  mobileSheetIssue.priority === "substance" ? "bg-amber-500" : "bg-pink-500"
-                }`} />
-                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                  {mobileSheetIssue.priority} · {mobileSheetIssue.category.replace(/_/g, " ")}
-                </span>
+        <div className="fixed inset-0 z-[100] lg:hidden">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setMobileSheetIssue(null)} />
+          <div className="absolute bottom-0 left-0 right-0 bg-card rounded-t-[40px] px-8 pt-4 pb-12 shadow-2xl animate-in slide-in-from-bottom duration-400">
+            <div className="w-12 h-1.5 bg-border rounded-full mx-auto mb-8" />
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-3 h-3 rounded-full shadow-lg",
+                    mobileSheetIssue.priority === "trust" ? "bg-accent shadow-accent/20" :
+                    mobileSheetIssue.priority === "substance" ? "bg-secondary shadow-secondary/20" : "bg-green-500"
+                  )} />
+                  <span className="text-[11px] font-black uppercase tracking-[0.2em] text-foreground/60">
+                    {mobileSheetIssue.priority} report
+                  </span>
+                </div>
+                <button onClick={() => setMobileSheetIssue(null)} className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+                  <X size={20} />
+                </button>
               </div>
-              <button
-                onClick={() => setMobileSheetIssue(null)}
-                className="text-gray-400 hover:text-gray-900 text-[18px] leading-none p-1"
-                aria-label="Close"
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-muted/30 border border-border italic text-sm font-bold text-foreground">
+                  &ldquo;{mobileSheetIssue.phrase}&rdquo;
+                </div>
+                <div className="space-y-1">
+                   <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest">Correction Logic</h4>
+                   <p className="text-[15px] font-medium leading-relaxed text-foreground/80">
+                     {mobileSheetIssue.explanation}
+                   </p>
+                </div>
+              </div>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="w-full rounded-2xl font-bold mt-4 h-14"
+                onClick={() => {
+                  setActiveTab("issues");
+                  setMobileSheetIssue(null);
+                }}
               >
-                ×
-              </button>
+                View Priority Group
+              </Button>
             </div>
-            <p className="text-[14px] font-semibold text-gray-900 mb-2">
-              &ldquo;{mobileSheetIssue.phrase}&rdquo;
-            </p>
-            <p className="text-[13px] text-gray-600 leading-relaxed mb-4">
-              {mobileSheetIssue.explanation}
-            </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                setActiveTab("issues");
-                setMobileSheetIssue(null);
-              }}
-            >
-              See all issues
-            </Button>
           </div>
-        </>
-      )}
-
-      {/* Cleaning Overlay */}
-      {isCleaning && (
-        <div className="fixed inset-0 bg-white/90 dark:bg-gray-950/90 z-[100] flex flex-col items-center justify-center animate-in fade-in duration-300">
-          <Spinner size="lg" className="mb-4" />
-          <p className="text-[15px] font-medium text-gray-900 dark:text-white">Preparing your clean-up...</p>
         </div>
       )}
+
+      {/* --- Global Loading/Fixing Overlay --- */}
+      {isCleaning && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-xl z-[200] flex flex-col items-center justify-center animate-in fade-in duration-500">
+          <div className="relative w-20 h-20 mb-8">
+             <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+             <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+             <div className="absolute inset-0 flex items-center justify-center text-primary">
+                <Zap size={24} fill="currentColor" />
+              </div>
+          </div>
+          <p className="text-xl font-bold tracking-tight animate-pulse">Launching Expert Clean-up...</p>
+        </div>
+      )}
+
+      <CleanupAmbitionModal 
+        isOpen={showAmbitionModal} 
+        onClose={() => setShowAmbitionModal(false)}
+        onConfirm={handleConfirmCleanup}
+        isLoading={isCleaning}
+      />
     </div>
   );
 }

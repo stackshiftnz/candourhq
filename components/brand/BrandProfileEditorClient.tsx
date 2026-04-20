@@ -5,11 +5,36 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { useAsyncAction } from "@/lib/hooks/useAsyncAction";
 import { useToast } from "@/lib/hooks/useToast";
 import { getWordCount } from "@/lib/utils/word-count";
 import type { Database } from "@/types/database";
+import { 
+  Plus, 
+  ChevronRight, 
+  User, 
+  Globe, 
+  Zap, 
+  ShieldCheck,
+  Search,
+  Settings2,
+  Trash2,
+  CreditCard,
+  Users,
+  Bell,
+  CheckCircle2,
+  AlertTriangle,
+  History,
+  Sparkles,
+  Pencil,
+  ArrowLeft,
+  Save,
+  MessageSquare,
+  FileText
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,38 +83,44 @@ const TONE_OPTIONS: Array<{
   value: Tone;
   label: string;
   description: string;
+  icon: React.ReactNode;
 }> = [
   {
     value: "formal",
     label: "Formal",
     description: "Measured, professional, precise.",
+    icon: <ShieldCheck size={14} />
   },
   {
     value: "conversational",
     label: "Conversational",
     description: "Friendly and direct.",
+    icon: <MessageSquare size={14} />
   },
   {
     value: "technical",
     label: "Technical",
     description: "Precise and expert-led.",
+    icon: <Settings2 size={14} />
   },
   {
     value: "warm",
     label: "Warm",
     description: "Human, empathetic, personal.",
+    icon: <Sparkles size={14} />
   },
   {
     value: "direct",
     label: "Direct",
     description: "Short sentences, clear takeaways.",
+    icon: <Zap size={14} />
   },
 ];
 
 const NAV_ACCOUNT_LINKS = [
-  { label: "Plan and billing", href: "/settings/billing" },
-  { label: "Team members", href: "/settings/team" },
-  { label: "Notifications", href: "/settings/notifications" },
+  { label: "Plan and billing", href: "/settings/billing", icon: <CreditCard size={14} /> },
+  { label: "Team members", href: "/settings/team", icon: <Users size={14} /> },
+  { label: "Notifications", href: "/settings/notifications", icon: <Bell size={14} /> },
 ];
 
 // ---------------------------------------------------------------------------
@@ -98,14 +129,14 @@ const NAV_ACCOUNT_LINKS = [
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[12px] font-medium uppercase tracking-[0.05em] text-gray-400">
+    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2 px-2">
       {children}
     </p>
   );
 }
 
 function SectionDivider() {
-  return <div className="border-t border-gray-100" />;
+  return <div className="border-t border-border/50" />;
 }
 
 // ---------------------------------------------------------------------------
@@ -268,56 +299,63 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-white">
+    <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-background selection:bg-primary/20">
       {/* ================================================================
-          LEFT NAV — Desktop (180px sidebar)
+          LEFT NAV — Desktop (240px sidebar)
           ================================================================ */}
-      <aside className="hidden lg:flex flex-col w-[180px] flex-shrink-0 border-r border-gray-100 bg-gray-50 py-4 overflow-y-auto">
+      <aside className="hidden lg:flex flex-col w-[240px] flex-shrink-0 border-r border-border bg-muted/20 py-8 overflow-y-auto custom-scrollbar">
         {/* Brand profiles section */}
-        <div className="px-4 mb-2">
-          <SectionLabel>Brand profiles</SectionLabel>
+        <div className="px-6 mb-4">
+          <SectionLabel>Identity Matrices</SectionLabel>
         </div>
-        <nav className="mb-4">
+        <nav className="mb-8 px-3 space-y-1">
           {allProfiles.map((p) => {
             const active = p.id === profile.id;
             return (
               <Link
                 key={p.id}
                 href={`/settings/brand/${p.id}`}
-                className={[
-                  "flex items-center px-4 py-2 text-[13px] transition-colors",
+                className={cn(
+                  "flex items-center gap-3 px-4 py-2.5 text-[12px] font-bold transition-all duration-300 rounded-xl group",
                   active
-                    ? "font-medium text-gray-900 bg-white border-r-2 border-gray-900"
-                    : "text-gray-400 hover:text-gray-600",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                    ? "text-foreground bg-background border border-border shadow-xl shadow-black/5"
+                    : "text-muted-foreground/60 hover:text-foreground hover:bg-muted"
+                )}
               >
+                <div className={cn(
+                   "w-2 h-2 rounded-full transition-all",
+                   active ? "bg-primary scale-100" : "bg-muted-foreground/20 scale-50 group-hover:scale-75"
+                )} />
                 <span className="truncate">{p.name}</span>
+                {p.is_default && (
+                   <ShieldCheck size={10} className={cn("ml-auto", active ? "text-primary" : "text-muted-foreground/30")} />
+                )}
               </Link>
             );
           })}
           <button
             onClick={handleNewProfile}
             disabled={isCreatingProfile}
-            className="w-full flex items-center px-4 py-2 text-[13px] text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-muted-foreground/40 hover:text-primary transition-all disabled:opacity-50"
           >
-            {isCreatingProfile ? "Creating…" : "+ New profile"}
+            <Plus size={14} strokeWidth={3} className="ml-0.5" />
+            <span>{isCreatingProfile ? "Deploying…" : "New Matrix"}</span>
           </button>
         </nav>
 
         {/* Account section */}
-        <div className="px-4 mb-2 mt-2">
-          <SectionLabel>Account</SectionLabel>
+        <div className="px-6 mb-4 mt-4">
+          <SectionLabel>Nexus Nodes</SectionLabel>
         </div>
-        <nav>
+        <nav className="px-3 space-y-1">
           {NAV_ACCOUNT_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="flex items-center px-4 py-2 text-[13px] text-gray-400 hover:text-gray-600 transition-colors"
+              className="flex items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-all rounded-xl"
             >
-              {link.label}
+              <div className="w-2 opacity-50">{link.icon}</div>
+              <span>{link.label}</span>
             </Link>
           ))}
         </nav>
@@ -326,22 +364,20 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
       {/* ================================================================
           MOBILE NAV — horizontal scrollable pill row
           ================================================================ */}
-      <div className="lg:hidden flex-shrink-0 border-b border-gray-100 bg-gray-50">
-        <div className="flex overflow-x-auto gap-2 px-4 py-2.5 no-scrollbar">
+      <div className="lg:hidden flex-shrink-0 border-b border-border bg-muted/40 backdrop-blur-xl">
+        <div className="flex overflow-x-auto gap-3 px-4 py-4 no-scrollbar">
           {allProfiles.map((p) => {
             const active = p.id === profile.id;
             return (
               <Link
                 key={p.id}
                 href={`/settings/brand/${p.id}`}
-                className={[
-                  "flex-shrink-0 h-11 px-4 text-xs font-medium rounded-full transition-colors flex items-center justify-center whitespace-nowrap",
+                className={cn(
+                  "flex-shrink-0 h-10 px-5 text-[10px] font-bold rounded-2xl transition-all flex items-center justify-center whitespace-nowrap border",
                   active
-                    ? "bg-gray-900 text-white"
-                    : "border border-gray-200 text-gray-500 hover:bg-gray-50",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                    ? "bg-foreground text-background border-foreground shadow-lg shadow-black/10"
+                    : "bg-background border-border text-muted-foreground hover:bg-muted"
+                )}
               >
                 {p.name}
               </Link>
@@ -350,9 +386,9 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
             <button
               onClick={handleNewProfile}
               disabled={isCreatingProfile}
-              className="flex-shrink-0 h-11 px-4 text-xs font-medium rounded-full border border-dashed border-gray-300 text-gray-400 whitespace-nowrap disabled:opacity-50"
+              className="flex-shrink-0 h-10 px-5 text-[10px] font-bold rounded-2xl border border-dashed border-border text-muted-foreground/40 whitespace-nowrap disabled:opacity-50"
             >
-              + New
+              + New Matrix
             </button>
         </div>
       </div>
@@ -360,32 +396,49 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
       {/* ================================================================
           RIGHT PANEL — Settings form
           ================================================================ */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl px-6 lg:px-8 py-8 space-y-8 pb-24 lg:pb-8">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="max-w-[800px] px-8 lg:px-12 py-10 space-y-12 pb-32 lg:pb-12">
           {/* Heading */}
-          <div>
-            <h1 className="text-[17px] font-medium text-gray-900">{name}</h1>
-            <p className="text-[12px] text-gray-400 mt-1">
-              These settings shape every diagnosis and clean-up using this
-              profile. Changes apply to new documents immediately.
-            </p>
+          <div className="flex items-start justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                 <Link href="/settings/brand" className="lg:hidden p-2 rounded-full border border-border bg-background">
+                    <ArrowLeft size={16} />
+                 </Link>
+                 <h1 className="text-3xl font-bold text-foreground tracking-tight">{name}</h1>
+              </div>
+              <p className="text-sm font-medium text-muted-foreground/60 leading-relaxed max-w-lg">
+                Calibrate the linguistic vectors and stylistic constraints for this specific identity matrix. Updates synchronize immediately.
+              </p>
+            </div>
+            {isDirty && (
+               <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary animate-pulse">
+                  <Zap size={12} fill="currentColor" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Modified</span>
+               </div>
+            )}
           </div>
 
           <SectionDivider />
 
           {/* ---- Profile name ---- */}
-          <section className="space-y-3">
-            <h3 className="text-[13px] font-medium text-gray-900">
-              Profile name
-            </h3>
-            <div className="max-w-sm">
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+               <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center text-muted-foreground/40">
+                  <Pencil size={14} />
+               </div>
+               <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Registry Identity</h3>
+            </div>
+            
+            <div className="max-w-md">
               <Input
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
                   markDirty();
                 }}
-                placeholder="e.g. Agency client — Smith & Co"
+                className="h-14 px-6 text-base font-bold rounded-[20px] bg-muted/20 border-border/50 focus:bg-background transition-all"
+                placeholder="e.g. Agency Client — Smith & Co"
               />
             </div>
           </section>
@@ -393,11 +446,15 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
           <SectionDivider />
 
           {/* ---- Language variant ---- */}
-          <section className="space-y-3">
-            <h3 className="text-[13px] font-medium text-gray-900">
-              Language variant
-            </h3>
-            <div className="grid grid-cols-2 gap-3 max-w-sm">
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+               <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center text-muted-foreground/40">
+                  <Globe size={14} />
+               </div>
+               <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Linguistic Variant</h3>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {LANGUAGE_OPTIONS.map(({ value, flag, name: langName, sub }) => {
                 const selected = language === value;
                 return (
@@ -408,31 +465,30 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
                       setLanguage(value);
                       markDirty();
                     }}
-                    className={[
-                      "flex flex-col items-start gap-1 rounded-[10px] p-3.5 text-left transition-colors",
+                    className={cn(
+                      "flex flex-col items-start gap-3 rounded-[28px] p-6 text-left transition-all duration-300 border group",
                       selected
-                        ? "border-2 border-gray-900 bg-gray-50"
-                        : "border border-gray-200 hover:border-gray-300",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
+                        ? "border-primary bg-primary/5 shadow-xl shadow-primary/5"
+                        : "border-border hover:border-primary/30 bg-muted/10"
+                    )}
                   >
-                    <span style={{ fontSize: 18 }} aria-hidden="true">
-                      {flag}
-                    </span>
-                    <span
-                      className={[
-                        "text-[13px] text-gray-900",
-                        selected ? "font-medium" : "font-normal",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    >
-                      {langName}
-                    </span>
-                    <span className="text-[12px] text-gray-500 leading-relaxed">
-                      {sub}
-                    </span>
+                    <div className="flex items-center justify-between w-full">
+                       <span style={{ fontSize: 24 }} aria-hidden="true" className="group-hover:scale-110 transition-transform">
+                         {flag}
+                       </span>
+                       {selected && <CheckCircle2 size={16} className="text-primary" />}
+                    </div>
+                    <div>
+                       <span className={cn(
+                         "text-sm font-bold uppercase tracking-tight block mb-1",
+                         selected ? "text-primary" : "text-foreground"
+                       )}>
+                         {langName}
+                       </span>
+                       <span className="text-[11px] font-medium text-muted-foreground/60 leading-relaxed block overflow-hidden">
+                         {sub}
+                       </span>
+                    </div>
                   </button>
                 );
               })}
@@ -442,12 +498,20 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
           <SectionDivider />
 
           {/* ---- Tone ---- */}
-          <section className="space-y-3">
-            <h3 className="text-[13px] font-medium text-gray-900">Tone</h3>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-              {TONE_OPTIONS.map(({ value, label, description }) => {
+          <section className="space-y-6">
+            <div className="flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center text-muted-foreground/40">
+                     <Zap size={14} />
+                  </div>
+                  <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Tone Synthesis</h3>
+               </div>
+               <Badge variant="secondary" size="sm" className="opacity-40">Affects Sentence Structure</Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {TONE_OPTIONS.map(({ value, label, description, icon }) => {
                 const selected = tone === value;
-                const isDirect = value === "direct";
                 return (
                   <button
                     key={value}
@@ -456,29 +520,30 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
                       setTone(value);
                       markDirty();
                     }}
-                    className={[
-                      "flex flex-col items-start gap-1 rounded-[10px] p-3.5 text-left transition-colors",
-                      isDirect ? "col-span-2 lg:col-span-1" : "",
+                    className={cn(
+                      "flex flex-col items-start gap-4 rounded-[28px] p-6 text-left transition-all duration-300 border group",
                       selected
-                        ? "border-2 border-gray-900 bg-gray-50"
-                        : "border border-gray-200 hover:border-gray-300",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
+                        ? "border-primary bg-primary/5 shadow-xl shadow-primary/5"
+                        : "border-border hover:border-primary/30 bg-muted/10 hover:-translate-y-1"
+                    )}
                   >
-                    <span
-                      className={[
-                        "text-[13px] text-gray-900",
-                        selected ? "font-medium" : "font-normal",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    >
-                      {label}
-                    </span>
-                    <span className="text-[12px] text-gray-500 leading-relaxed">
-                      {description}
-                    </span>
+                    <div className={cn(
+                       "w-8 h-8 rounded-xl flex items-center justify-center transition-all",
+                       selected ? "bg-primary text-background" : "bg-muted text-muted-foreground/40 group-hover:text-primary group-hover:bg-primary/20"
+                    )}>
+                       {icon}
+                    </div>
+                    <div>
+                       <span className={cn(
+                         "text-sm font-bold uppercase tracking-tight block mb-1",
+                         selected ? "text-primary" : "text-foreground"
+                       )}>
+                         {label}
+                       </span>
+                       <span className="text-[11px] font-medium text-muted-foreground/60 leading-tight block">
+                         {description}
+                       </span>
+                    </div>
                   </button>
                 );
               })}
@@ -488,163 +553,174 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
           <SectionDivider />
 
           {/* ---- Banned phrases ---- */}
-          <section className="space-y-3">
-            <div>
-              <h3 className="text-[13px] font-medium text-gray-900">
-                Banned phrases
-              </h3>
-              <p className="text-[12px] text-gray-400 mt-0.5">
-                These phrases will be flagged and replaced in every document
-                using this profile.
-              </p>
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+               <div className="w-8 h-8 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+                  <AlertTriangle size={14} />
+               </div>
+               <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Linguistic Suppression</h3>
             </div>
+            
+            <p className="text-[12px] font-medium text-muted-foreground/60 leading-relaxed max-w-lg">
+              Defined vocabulary vectors that will be systematically flagged and neutralized during clean-up.
+            </p>
 
-            {/* Input row */}
-            <div className="flex items-center gap-2 max-w-sm">
-              <input
-                type="text"
-                value={bannedInput}
-                onChange={(e) => setBannedInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addBannedPhrase();
-                  }
-                }}
-                placeholder="Add a phrase…"
-                className="flex-1 h-11 px-3 text-sm border border-gray-200 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1"
-              />
+            <div className="flex items-center gap-3 max-w-md">
+              <div className="relative flex-1">
+                 <Input
+                   type="text"
+                   value={bannedInput}
+                   onChange={(e) => setBannedInput(e.target.value)}
+                   onKeyDown={(e) => {
+                     if (e.key === "Enter") {
+                       e.preventDefault();
+                       addBannedPhrase();
+                     }
+                   }}
+                   placeholder="Suppress phrase..."
+                   className="h-14 px-6 text-sm font-bold rounded-[22px] bg-muted/20 border-border/50 focus:bg-background transition-all pr-12"
+                 />
+                 <Search size={16} className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground/30 pointer-events-none" />
+              </div>
               <Button
-                variant="secondary"
-                size="md"
-                className="h-11"
+                variant="primary"
+                className="h-14 w-14 rounded-full p-0 flex items-center justify-center bg-accent text-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-accent/20 font-bold"
                 onClick={addBannedPhrase}
                 disabled={!bannedInput.trim()}
               >
-                Add
+                <Plus size={20} strokeWidth={3} />
               </Button>
             </div>
 
             {/* Pills */}
-            {bannedPhrases.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {bannedPhrases.map((phrase) => (
-                  <span
-                    key={phrase}
-                    className="bg-red-100 text-red-800 rounded-full text-xs px-3 py-1 inline-flex items-center gap-1"
+            <div className="flex flex-wrap gap-3">
+              {bannedPhrases.map((phrase) => (
+                <div
+                  key={phrase}
+                  className="group/pill bg-accent/10 text-accent border border-accent/20 rounded-full text-[10px] font-bold uppercase tracking-widest px-4 py-2 flex items-center gap-2 hover:bg-accent hover:text-white transition-all cursor-default"
+                >
+                  {phrase}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBannedPhrases((prev) =>
+                        prev.filter((p) => p !== phrase)
+                      );
+                      markDirty();
+                    }}
+                    className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                    aria-label={`Remove ${phrase}`}
                   >
-                    {phrase}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBannedPhrases((prev) =>
-                          prev.filter((p) => p !== phrase)
-                        );
-                        markDirty();
-                      }}
-                      className="ml-0.5 text-red-500 hover:text-red-800 transition-colors leading-none"
-                      aria-label={`Remove ${phrase}`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+                    <Trash2 size={12} strokeWidth={3} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </section>
 
           <SectionDivider />
 
           {/* ---- Approved phrases ---- */}
-          <section className="space-y-3">
-            <div>
-              <h3 className="text-[13px] font-medium text-gray-900">
-                Approved phrases
-              </h3>
-              <p className="text-[12px] text-gray-400 mt-0.5">
-                Product names, brand terms, and preferred vocabulary preserved
-                during clean-up.
-              </p>
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+               <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500">
+                  <ShieldCheck size={14} />
+               </div>
+               <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Vocabulary Preservation</h3>
             </div>
 
-            {/* Input row */}
-            <div className="flex items-center gap-2 max-w-sm">
-              <input
-                type="text"
-                value={approvedInput}
-                onChange={(e) => setApprovedInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addApprovedPhrase();
-                  }
-                }}
-                placeholder="Add a phrase…"
-                className="flex-1 h-11 px-3 text-sm border border-gray-200 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1"
-              />
+            <p className="text-[12px] font-medium text-muted-foreground/60 leading-relaxed max-w-lg">
+              Immutable brand terms and preferred technical nomenclature that will be protected during the clean-up pass.
+            </p>
+
+            <div className="flex items-center gap-3 max-w-md">
+              <div className="relative flex-1">
+                 <Input
+                    type="text"
+                    value={approvedInput}
+                    onChange={(e) => setApprovedInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addApprovedPhrase();
+                      }
+                    }}
+                    placeholder="Preserve phrase..."
+                    className="h-14 px-6 text-sm font-bold rounded-[22px] bg-muted/20 border-border/50 focus:bg-background transition-all pr-12"
+                 />
+                 <CheckCircle2 size={16} className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground/30 pointer-events-none" />
+              </div>
               <Button
-                variant="secondary"
-                size="md"
-                className="h-11"
+                variant="primary"
+                className="h-14 w-14 rounded-full p-0 flex items-center justify-center bg-green-500 text-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-green-500/20 font-bold"
                 onClick={addApprovedPhrase}
                 disabled={!approvedInput.trim()}
               >
-                Add
+                <Plus size={20} strokeWidth={3} />
               </Button>
             </div>
 
             {/* Pills */}
-            {approvedPhrases.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {approvedPhrases.map((phrase) => (
-                  <span
-                    key={phrase}
-                    className="bg-green-100 text-green-800 rounded-full text-xs px-3 py-1 inline-flex items-center gap-1"
+            <div className="flex flex-wrap gap-3">
+              {approvedPhrases.map((phrase) => (
+                <div
+                  key={phrase}
+                  className="group/pill bg-green-500/10 text-green-600 border border-green-500/20 rounded-full text-[10px] font-bold uppercase tracking-widest px-4 py-2 flex items-center gap-2 hover:bg-green-500 hover:text-white transition-all cursor-default"
+                >
+                  {phrase}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApprovedPhrases((prev) =>
+                        prev.filter((p) => p !== phrase)
+                      );
+                      markDirty();
+                    }}
+                    className="p-1 rounded-full hover:bg-white/20 transition-colors"
+                    aria-label={`Remove ${phrase}`}
                   >
-                    {phrase}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setApprovedPhrases((prev) =>
-                          prev.filter((p) => p !== phrase)
-                        );
-                        markDirty();
-                      }}
-                      className="ml-0.5 text-green-600 hover:text-green-900 transition-colors leading-none"
-                      aria-label={`Remove ${phrase}`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+                    <Trash2 size={12} strokeWidth={3} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </section>
 
           <SectionDivider />
 
           {/* ---- Writing examples ---- */}
-          <section className="space-y-3">
-            <div>
-              <h3 className="text-[13px] font-medium text-gray-900">
-                Writing examples
-              </h3>
-              <p className="text-[12px] text-gray-400 mt-0.5">
-                Private to your account. Help Candour learn your voice.
-              </p>
+          <section className="space-y-6">
+            <div className="flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center text-muted-foreground/40">
+                     <FileText size={14} />
+                  </div>
+                  <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Voice Samples</h3>
+               </div>
+               <Badge variant="secondary" size="sm" className="opacity-40">{writingExamples.length} of 5 Slots Filled</Badge>
             </div>
+
+            <p className="text-[12px] font-medium text-muted-foreground/60 leading-relaxed max-w-lg">
+               Providing stylistic samples allows the identity matrix to learn and replicate specific linguistic patterns. Samples are processed into private vectors.
+            </p>
             
             {/* Existing examples */}
             {writingExamples.length > 0 ? (
-              <ul className="space-y-2">
+              <div className="grid grid-cols-1 gap-3">
                 {writingExamples.map((example, idx) => (
-                  <li
+                  <div
                     key={idx}
-                    className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
+                    className="flex items-center justify-between p-6 bg-muted/10 border border-border rounded-[32px] group"
                   >
-                    <span className="text-[12px] text-gray-500">
-                      Example {idx + 1} · {getWordCount(example)} words
-                    </span>
+                    <div className="flex items-center gap-4">
+                       <div className="w-10 h-10 rounded-2xl bg-background border border-border flex items-center justify-center text-[10px] font-bold">
+                          {idx + 1}
+                       </div>
+                       <div className="flex flex-col">
+                          <span className="text-[11px] font-bold uppercase tracking-widest text-foreground">Sample Vector #{idx + 1}</span>
+                          <span className="text-[10px] font-medium text-muted-foreground/60">{getWordCount(example)} Vectors Extracted</span>
+                       </div>
+                    </div>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -654,43 +730,44 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
                         );
                         markDirty();
                       }}
-                      className="text-gray-400 hover:text-red-600 text-xs"
+                      className="text-muted-foreground/40 hover:text-accent hover:bg-accent/10 rounded-xl"
                     >
-                      Remove
+                      <Trash2 size={16} />
                     </Button>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             ) : (
-              <p className="text-[13px] text-gray-400 py-3">
-                No writing examples added yet. Examples help Candour learn your voice.
-              </p>
+              <div className="flex flex-col items-center justify-center py-12 px-6 border-2 border-dashed border-border rounded-[48px] bg-muted/5 opacity-50">
+                 <FileText size={32} className="text-muted-foreground/20 mb-4" />
+                 <p className="text-[11px] font-bold uppercase text-center text-muted-foreground tracking-widest">No stylistic samples linked</p>
+              </div>
             )}
 
             {/* Add example — inline form */}
             {writingExamples.length < 5 && (
-              <>
+              <div className="pt-2">
                 {showAddExample ? (
-                  <div className="space-y-2">
+                  <div className="p-8 bg-muted/10 border border-border rounded-[40px] space-y-6 animate-in zoom-in-95 duration-300">
                     <textarea
                       value={newExample}
                       onChange={(e) => setNewExample(e.target.value)}
-                      placeholder="Paste a writing example here…"
-                      rows={5}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1 resize-none"
+                      placeholder="Paste high-performing writing sample here..."
+                      rows={8}
+                      className="w-full p-6 text-sm font-medium bg-background border border-border rounded-[28px] placeholder-muted-foreground/30 focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/50 transition-all resize-none custom-scrollbar"
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <Button
-                        variant="primary"
-                        size="sm"
+                        className="h-12 px-8 rounded-full font-bold text-[10px] bg-foreground text-background"
                         onClick={addExample}
                         disabled={!newExample.trim()}
                       >
-                        Add example
+                        <CheckCircle2 size={14} className="mr-2" strokeWidth={3} />
+                        Link Sample
                       </Button>
                       <Button
                         variant="ghost"
-                        size="sm"
+                        className="h-12 px-8 rounded-full font-bold text-[10px] text-muted-foreground"
                         onClick={() => {
                           setShowAddExample(false);
                           setNewExample("");
@@ -704,47 +781,47 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
                   <button
                     type="button"
                     onClick={() => setShowAddExample(true)}
-                    className="h-11 flex items-center text-[13px] text-gray-400 hover:text-gray-700 transition-colors"
+                    className="w-full h-20 flex items-center justify-center gap-3 rounded-[32px] border-2 border-dashed border-border text-[11px] font-bold uppercase tracking-widest text-muted-foreground/40 hover:text-primary hover:border-primary/30 transition-all group"
                   >
-                    + Add another example
+                    <Plus size={16} strokeWidth={3} className="text-muted-foreground/20 group-hover:text-primary/40 group-hover:scale-110 transition-all" />
+                    Initialize and link new sample vector
                   </button>
                 )}
-              </>
-            )}
-
-            {writingExamples.length === 5 && (
-              <p className="text-[12px] text-gray-400">
-                Maximum 5 examples reached.
-              </p>
+              </div>
             )}
           </section>
 
-          {/* ---- Save row — desktop ---- */}
-          <div className="hidden lg:flex items-center justify-between border-t border-gray-100 pt-4">
-            <p className="text-[12px] text-gray-400 max-w-xs">
-              Changes apply to new documents immediately. Previously analysed
-              documents are unaffected.
-            </p>
+          {/* Desktop Save Area */}
+          <div className="hidden lg:flex items-center justify-between pt-12 border-t border-border">
+            <div className="flex flex-col gap-1">
+               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Matrix Synchronization</span>
+               <p className="text-[11px] text-muted-foreground/40 font-medium">New documents will inherit these parameters instantly.</p>
+            </div>
             <Button
-              variant="primary"
+              className="h-14 px-10 rounded-[28px] font-bold text-xs bg-foreground text-background hover:scale-[1.02] transition-all shadow-2xl shadow-black/20"
               onClick={handleSave}
               loading={isSaving}
+              disabled={!isDirty}
             >
-              Save changes
+              <Save size={16} className="mr-2" strokeWidth={3} />
+              Synchronize Registry
             </Button>
           </div>
         </div>
       </div>
 
-      {/* ---- Save row — mobile sticky footer ---- */}
-      <div className="lg:hidden fixed bottom-16 left-0 right-0 z-20 bg-white border-t border-gray-100 px-4 py-3">
+      {/* Mobile Save Footer */}
+      <div className={cn(
+         "lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-background/80 backdrop-blur-2xl border-t border-border p-4 transition-transform duration-500",
+         isDirty ? "translate-y-0" : "translate-y-full"
+      )}>
         <Button
-          variant="primary"
+          className="w-full h-14 rounded-2xl font-bold bg-foreground text-background shadow-2xl shadow-black/20"
           onClick={handleSave}
           loading={isSaving}
-          className="w-full"
         >
-          Save changes
+          <Save size={16} className="mr-2" strokeWidth={3} />
+          Synchronize Matrix
         </Button>
       </div>
 

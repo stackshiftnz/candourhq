@@ -1,28 +1,94 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans: "Inter", -apple-system, sans-serif;
+  
+  /* Semantic tokens using CSS variables */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Radius tokens */
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --radius-sm: 4px;
+
+  /* Brand aliases for backward compatibility if needed */
   --color-brand-dark: #181818;
   --color-brand-yellow: #ffd480;
   --color-brand-pink: #ff9393;
   --color-brand-green: #c8ccc2;
   --color-brand-cream: #fbfaf8;
-
-  --font-sans: "SF Pro Display", -apple-system, sans-serif;
 }
 
-/* Custom base styles */
 @layer base {
-  html {
-    font-size: 16px;
+  :root {
+    --background: #fbfaf8;
+    --foreground: #181818;
+
+    --primary: #181818;
+    --primary-foreground: #fbfaf8;
+
+    --secondary: #ffd480;
+    --secondary-foreground: #181818;
+
+    --accent: #ff9393;
+    --accent-foreground: #181818;
+
+    --muted: #eceae5;
+    --muted-foreground: #6b6b6b;
+
+    --border: #e5e2db;
+    --input: #e5e2db;
+    --ring: rgba(24, 24, 24, 0.1);
+  }
+
+  .dark {
+    --background: #181818;
+    --foreground: #fbfaf8;
+
+    --primary: #fbfaf8;
+    --primary-foreground: #181818;
+
+    --secondary: #ffd480;
+    --secondary-foreground: #181818;
+
+    --accent: #ff9393;
+    --accent-foreground: #181818;
+
+    --muted: #2a2a2a;
+    --muted-foreground: #a1a1aa;
+
+    --border: #333333;
+    --input: #333333;
+    --ring: rgba(251, 250, 248, 0.2);
+  }
+
+  * {
+    @apply border-border;
   }
 
   body {
-    line-height: 1.7;
-    @apply font-sans;
+    @apply bg-background text-foreground font-sans antialiased;
+    line-height: 1.6;
   }
 }
 
-/* Custom utility styles */
 @layer utilities {
   .no-scrollbar {
     -ms-overflow-style: none;
@@ -30,5 +96,10 @@
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Enterprise shadows */
+  .shadow-soft {
+    shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1);
   }
 }
