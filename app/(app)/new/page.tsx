@@ -24,7 +24,8 @@ import {
   Type, 
   ArrowRight, 
   Sparkles,
-  Briefcase
+  Briefcase,
+  AlertCircle
 } from "lucide-react";
 
 type BrandProfile = Database["public"]["Tables"]["brand_profiles"]["Row"];
