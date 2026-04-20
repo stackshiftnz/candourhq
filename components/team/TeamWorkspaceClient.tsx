@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
 import {
   inviteTeamMember,
   cancelInvite,
@@ -638,7 +640,7 @@ export function TeamWorkspaceClient({
                       </div>
                       <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Verification Queue</h3>
                    </div>
-                   <Badge variant="accent" size="sm" className="bg-accent/20 text-accent border-accent/30">{submittedDocs.length} Vectors</Badge>
+                   <Badge variant="neutral" size="sm" className="bg-accent/20 text-accent border-accent/30">{submittedDocs.length} Vectors</Badge>
                 </div>
 
                 {submittedDocs.length === 0 ? (
