@@ -520,7 +520,7 @@ export function TeamWorkspaceClient({
                   </div>
                   <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Active Nodes</h3>
                </div>
-               <Badge variant="secondary" size="sm" className="opacity-40">{members.length} Authorized</Badge>
+               <Badge variant="neutral" size="sm" className="opacity-40">{members.length} Authorized</Badge>
             </div>
 
             <div className="grid grid-cols-1 gap-3">

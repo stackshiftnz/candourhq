@@ -506,7 +506,7 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
                   </div>
                   <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Tone Synthesis</h3>
                </div>
-               <Badge variant="secondary" size="sm" className="opacity-40">Affects Sentence Structure</Badge>
+               <Badge variant="neutral" size="sm" className="opacity-40">Affects Sentence Structure</Badge>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -697,7 +697,7 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
                   </div>
                   <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Voice Samples</h3>
                </div>
-               <Badge variant="secondary" size="sm" className="opacity-40">{writingExamples.length} of 5 Slots Filled</Badge>
+               <Badge variant="neutral" size="sm" className="opacity-40">{writingExamples.length} of 5 Slots Filled</Badge>
             </div>
 
             <p className="text-[12px] font-medium text-muted-foreground/60 leading-relaxed max-w-lg">
