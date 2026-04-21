@@ -540,10 +540,8 @@ export default function DiagnosisPage() {
               <span className="text-[10px] font-black text-foreground/40 uppercase tracking-[0.25em] -rotate-90 whitespace-nowrap group-hover/ribbon:text-foreground transition-colors">Report</span>
             </button>
           ) : (
-            <div className="flex-1 flex flex-col relative">
-              {/* Sticky Inner Cockpit Wrapper */}
-              <div className="sticky top-0 h-full flex flex-col">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 pointer-events-none opacity-50" />
+            <div className="flex-1 flex flex-col relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 pointer-events-none opacity-50" />
                 
                 <div className="h-10 px-4 border-b border-border bg-background/80 backdrop-blur-sm flex items-center justify-between shrink-0 z-10">
                   <div className="flex items-center">
@@ -562,7 +560,7 @@ export default function DiagnosisPage() {
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-6 py-8 custom-scrollbar space-y-8 relative z-10">
+                <div className="flex-1 overflow-y-auto px-6 py-8 custom-scrollbar space-y-8 relative z-10 pb-24">
                   <div className="relative group/finding">
                     <div className="absolute inset-0 bg-primary/5 blur-3xl opacity-0 group-hover/finding:opacity-100 transition-opacity duration-1000" />
                     <div className="relative bg-background/40 backdrop-blur-md rounded-[32px] border border-border/50 p-7 shadow-2xl shadow-black/5 space-y-5 transition-all duration-500 hover:border-primary/20">
@@ -616,8 +614,7 @@ export default function DiagnosisPage() {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
         </div>
 
         {/* --- COLUMN 3: INSIGHTS (Issue List) --- */}

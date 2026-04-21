@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAsyncAction } from "@/lib/hooks/useAsyncAction";
 import { useToast } from "@/lib/hooks/useToast";
@@ -76,7 +77,7 @@ function SignInForm() {
   );
 
   // ── Render ──────────────────────────────────────────────────────────────────
-  const { Eye, EyeOff } = require("lucide-react");
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col gap-6">

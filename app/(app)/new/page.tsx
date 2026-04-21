@@ -27,6 +27,7 @@ import {
   Briefcase,
   CircleAlert
 } from "lucide-react";
+import { ScorePreview, PreviewData } from "@/components/analysis/ScorePreview";
 
 type BrandProfile = Database["public"]["Tables"]["brand_profiles"]["Row"];
 
@@ -69,7 +70,14 @@ export default function NewDocumentPage() {
   const [detectionState, setDetectionState] = useState<"auto" | "detected" | "manual">("auto");
   const [showMobileSettings, setShowMobileSettings] = useState(false);
   
+  // Preview Scan State
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  
   const detectionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const previewTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch brand profiles
   useEffect(() => {
@@ -98,6 +106,13 @@ export default function NewDocumentPage() {
 
   const handleAnalyse = async () => {
     if (!content.trim() && activeTab === "paste") return;
+    
+    // Clear preview state and timers
+    setIsPreviewLoading(false);
+    setPreviewVisible(false);
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    
     setIsAnalysing(true);
 
     try {
@@ -148,6 +163,32 @@ export default function NewDocumentPage() {
     }
   }, [isManualType]);
 
+  const handlePreviewScan = useCallback(async (text: string) => {
+    if (!text.trim() || text.length < 50 || isAnalysing || previewData) return;
+    
+    setIsPreviewLoading(true);
+    setPreviewVisible(true);
+    
+    try {
+      const res = await fetch("/api/analyse/preview", {
+        method: "POST",
+        body: JSON.stringify({ text }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setPreviewData(data);
+      } else {
+        setPreviewVisible(false);
+      }
+    } catch (err) {
+      console.error("Preview scan error:", err);
+      setPreviewVisible(false);
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  }, [isAnalysing, previewData]);
+
   useEffect(() => {
     if (isManualType) return;
     if (wordCount < 50 && wordCount > 0) {
@@ -158,17 +199,27 @@ export default function NewDocumentPage() {
     }
 
     if (detectionTimerRef.current) clearTimeout(detectionTimerRef.current);
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
     
+    // Auto-detect timer (1.5s)
     detectionTimerRef.current = setTimeout(() => {
       if (content.trim()) {
         handleAutoDetect(content);
       }
     }, 1500);
 
+    // Preview scan timer (15s inactivity)
+    if (content.trim().length >= 50 && !previewData && !isPreviewLoading) {
+      previewTimerRef.current = setTimeout(() => {
+        handlePreviewScan(content);
+      }, 15000);
+    }
+
     return () => {
       if (detectionTimerRef.current) clearTimeout(detectionTimerRef.current);
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
     };
-  }, [content, wordCount, handleAutoDetect, isManualType]);
+  }, [content, wordCount, handleAutoDetect, handlePreviewScan, isManualType, previewData, isPreviewLoading, isAnalysing]);
 
   const handleFileUpload = async (file: File) => {
     if (file.size > 5 * 1024 * 1024) {
@@ -344,12 +395,18 @@ export default function NewDocumentPage() {
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
-                   {detectionState === "detected" && (
+                    {detectionState === "detected" && (
                      <span className="flex items-center gap-1 text-[10px] font-bold text-primary animate-in fade-in slide-in-from-right-2">
                        <Sparkles size={10} /> Auto-detected
                      </span>
-                   )}
-                   <span className="text-[11px] font-bold text-muted-foreground px-2 py-0.5 rounded-md bg-muted">
+                    )}
+                    {isPreviewLoading && (
+                      <span className="flex items-center gap-1.5 text-[10px] font-bold text-primary animate-pulse">
+                        <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
+                        Scanning...
+                      </span>
+                    )}
+                    <span className="text-[11px] font-bold text-muted-foreground px-2 py-0.5 rounded-md bg-muted">
                     {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
                    </span>
                 </div>
@@ -359,7 +416,20 @@ export default function NewDocumentPage() {
                 className="flex-1 w-full p-8 lg:p-12 resize-none focus:outline-none bg-transparent text-lg lg:text-xl font-medium leading-relaxed placeholder:text-muted-foreground/30 selection:bg-primary/20"
                 placeholder="Paste your AI content here..."
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={(e) => {
+                  setContent(e.target.value);
+                  // Reset preview if content changes significantly
+                  if (previewData) {
+                    setPreviewData(null);
+                    setPreviewVisible(false);
+                  }
+                }}
+              />
+              <ScorePreview 
+                data={previewData} 
+                isLoading={isPreviewLoading} 
+                isVisible={previewVisible} 
+                onAction={handleAnalyse}
               />
             </div>
           )}
@@ -496,6 +566,19 @@ export default function NewDocumentPage() {
           disabled={isAnalysing || (activeTab === "paste" && !content.trim())}
           onClick={handleAnalyse}
           loading={isAnalysing}
+          onMouseEnter={() => {
+            if (!previewData && !isPreviewLoading && content.trim().length >= 50) {
+              hoverTimerRef.current = setTimeout(() => {
+                handlePreviewScan(content);
+              }, 1000);
+            }
+          }}
+          onMouseLeave={() => {
+            if (hoverTimerRef.current) {
+              clearTimeout(hoverTimerRef.current);
+              hoverTimerRef.current = null;
+            }
+          }}
         >
           {isAnalysing ? "Analysing..." : "Analyse Content"}
         </Button>
