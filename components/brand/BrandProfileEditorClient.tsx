@@ -35,6 +35,8 @@ import {
   FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandCalibrationModal } from "./BrandCalibrationModal";
+import type { CalibrateResponse } from "@/lib/anthropic/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -175,6 +177,7 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
   const [showAddExample, setShowAddExample] = useState(false);
   const [newExample, setNewExample] = useState("");
   const [isDirty, setIsDirty] = useState(false);
+  const [isCalibrationOpen, setIsCalibrationOpen] = useState(false);
   const { toast } = useToast();
 
   // ---- Reset when profile changes (nav between profiles) ----
@@ -206,6 +209,19 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
 
   // ---- Helpers ----
   const markDirty = () => setIsDirty(true);
+
+  const applyCalibration = (data: CalibrateResponse) => {
+    setName(data.profileName);
+    setTone(data.tone as any);
+    setLanguage(data.languageVariant as any);
+    
+    // Merge phrases while avoiding duplicates
+    setApprovedPhrases(prev => Array.from(new Set([...prev, ...data.approvedPhrases])));
+    setBannedPhrases(prev => Array.from(new Set([...prev, ...data.bannedPhrases])));
+    
+    setIsDirty(true);
+    toast("Calibration applied. Review and synchronize to save.", "success");
+  };
 
   // ---- Save ----
   const { execute: handleSave, loading: isSaving } = useAsyncAction(
@@ -449,16 +465,26 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
                <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Registry Identity</h3>
             </div>
             
-            <div className="max-w-md">
-              <Input
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  markDirty();
-                }}
-                className="h-14 px-6 text-base font-bold rounded-[20px] bg-muted/20 border-border/50 focus:bg-background transition-all"
-                placeholder="e.g. Agency Client — Smith & Co"
-              />
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <div className="flex-1 w-full max-w-md">
+                <Input
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    markDirty();
+                  }}
+                  className="h-14 px-6 text-base font-bold rounded-[20px] bg-muted/20 border-border/50 focus:bg-background transition-all"
+                  placeholder="e.g. Agency Client — Smith & Co"
+                />
+              </div>
+              <Button
+                variant="outline"
+                className="h-14 px-6 rounded-[20px] font-bold text-[10px] uppercase tracking-widest border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all group shrink-0"
+                onClick={() => setIsCalibrationOpen(true)}
+              >
+                <Sparkles size={14} className="mr-2 text-primary group-hover:scale-110 transition-transform" />
+                Calibrate from Content
+              </Button>
             </div>
           </section>
 
@@ -933,6 +959,11 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
         </Button>
       </div>
 
+      <BrandCalibrationModal 
+        isOpen={isCalibrationOpen}
+        onClose={() => setIsCalibrationOpen(false)}
+        onCalibrate={applyCalibration}
+      />
     </div>
   );
 }

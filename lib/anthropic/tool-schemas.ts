@@ -167,3 +167,41 @@ export const cleanupTool: Tool = {
     required: ["paragraphs"]
   }
 };
+
+export const CALIBRATE_TOOL_NAME = "submit_calibration";
+
+export const calibrateTool: Tool = {
+  name: CALIBRATE_TOOL_NAME,
+  description:
+    "Submit the inferred brand profile after analyzing writing samples. Identifies tone, language variant, and key phrase lists.",
+  input_schema: {
+    type: "object",
+    properties: {
+      profileName: {
+        type: "string",
+        description: "A professional name for this brand profile (e.g., 'Corporate Tech' or 'Friendly E-commerce')."
+      },
+      tone: {
+        type: "string",
+        enum: ["formal", "conversational", "technical", "warm", "direct"],
+        description: "The primary stylistic tone inferred from the samples."
+      },
+      languageVariant: {
+        type: "string",
+        enum: ["en-US", "en-GB"],
+        description: "The detected English variant based on spelling patterns (color vs colour, etc.)."
+      },
+      approvedPhrases: {
+        type: "array",
+        items: { type: "string" },
+        description: "5-10 key professional terms or preferred phrases identified as high-quality in the samples."
+      },
+      bannedPhrases: {
+        type: "array",
+        items: { type: "string" },
+        description: "5-10 stylistic artifacts or filler words to avoid, based on the samples' best versions."
+      }
+    },
+    required: ["profileName", "tone", "languageVariant", "approvedPhrases", "bannedPhrases"]
+  }
+};

@@ -105,8 +105,12 @@ export interface CleanupResponse {
   paragraphs: CleanupParagraph[]
 }
 
-// ─── Classify types ───────────────────────────────────────────────────────────
+// ─── Calibrate types ─────────────────────────────────────────────────────────
 
-export interface ClassifyResponse {
-  contentType: ContentType
+export interface CalibrateResponse {
+  profileName: string
+  tone: Tone
+  languageVariant: LanguageVariant
+  approvedPhrases: string[]
+  bannedPhrases: string[]
 }
