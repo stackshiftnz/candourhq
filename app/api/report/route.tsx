@@ -26,7 +26,7 @@ import {
   StyleSheet
 } from "@react-pdf/renderer";
 
-const EXECUTIVE_SUMMARY_MODEL = "claude-sonnet-4-6";
+const EXECUTIVE_SUMMARY_MODEL = "claude-haiku-4-5-20251001";
 
 async function generateExecutiveSummary(args: {
   documentTitle: string;
@@ -133,14 +133,43 @@ export async function GET(req: NextRequest) {
       .limit(1)
       .single();
 
-    if (cleanError || !cleanup || !cleanup.final_content) {
-      console.error("[REPORT] Cleanup check failed:", {
+    if (cleanError || !cleanup) {
+      console.error("[REPORT] Cleanup fetch failed:", {
         documentId,
         cleanError,
-        hasCleanup: !!cleanup,
-        hasFinalContent: !!cleanup?.final_content
+        hasCleanup: !!cleanup
       });
       return new NextResponse("Document not cleaned up yet", { status: 400 });
+    }
+
+    let finalContent = cleanup.final_content;
+
+    // If final_content is missing, calculate it from paragraphs
+    if (!finalContent && cleanup.paragraphs) {
+      const paragraphs = cleanup.paragraphs as any[];
+      finalContent = paragraphs
+        .map(p => {
+          if (p.type === 'clean') return p.cleaned || "";
+          if (p.type === 'pause') return p.original || ""; // Fallback to original for unresolved cards
+          return "";
+        })
+        .filter(Boolean)
+        .join("\n\n");
+
+      // Persist it for future requests
+      if (finalContent) {
+        await supabase
+          .from("cleanups")
+          .update({ final_content: finalContent })
+          .eq("id", cleanup.id);
+        
+        // Update the local object so the rest of the switch statement sees it
+        cleanup.final_content = finalContent;
+      }
+    }
+
+    if (!cleanup.final_content) {
+      return new NextResponse("Document clean-up is not complete (missing content)", { status: 400 });
     }
 
     const { data: diagnosis, error: diagError } = await supabase

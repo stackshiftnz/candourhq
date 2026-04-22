@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 type BrandProfile = Database["public"]["Tables"]["brand_profiles"]["Row"];
 type Tone = "formal" | "conversational" | "technical" | "warm" | "direct";
 type LangVariant = "en-US" | "en-GB";
+type SavedFact = { label: string; value: string };
 
 interface NavProfile {
   id: string;
@@ -162,10 +163,15 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
   const [writingExamples, setWritingExamples] = useState<string[]>(
     profile.writing_examples ?? []
   );
+  const [savedFacts, setSavedFacts] = useState<SavedFact[]>(
+    (profile.saved_facts as any) ?? []
+  );
 
   // ---- UI state ----
   const [bannedInput, setBannedInput] = useState("");
   const [approvedInput, setApprovedInput] = useState("");
+  const [factLabelInput, setFactLabelInput] = useState("");
+  const [factValueInput, setFactValueInput] = useState("");
   const [showAddExample, setShowAddExample] = useState(false);
   const [newExample, setNewExample] = useState("");
   const [isDirty, setIsDirty] = useState(false);
@@ -176,11 +182,12 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
     setName(profile.name);
     setLanguage((profile.language_variant as LangVariant) || "en-US");
     setTone((profile.tone as Tone) || "conversational");
-    setBannedPhrases(profile.banned_phrases ?? []);
-    setApprovedPhrases(profile.approved_phrases ?? []);
     setWritingExamples(profile.writing_examples ?? []);
+    setSavedFacts((profile.saved_facts as any) ?? []);
     setBannedInput("");
     setApprovedInput("");
+    setFactLabelInput("");
+    setFactValueInput("");
     setNewExample("");
     setShowAddExample(false);
     setIsDirty(false);
@@ -212,6 +219,7 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
           banned_phrases: bannedPhrases,
           approved_phrases: approvedPhrases,
           writing_examples: writingExamples,
+          saved_facts: savedFacts as any,
           updated_at: new Date().toISOString(),
         })
         .eq("id", profile.id);
@@ -251,6 +259,7 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
           ],
           approved_phrases: [],
           writing_examples: [],
+          saved_facts: [],
         })
         .select("id")
         .single();
@@ -282,6 +291,16 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
     if (!val || approvedPhrases.includes(val)) return;
     setApprovedPhrases((prev) => [...prev, val]);
     setApprovedInput("");
+    markDirty();
+  }
+
+  function addSavedFact() {
+    const label = factLabelInput.trim();
+    const value = factValueInput.trim();
+    if (!label || !value) return;
+    setSavedFacts((prev) => [...prev, { label, value }]);
+    setFactLabelInput("");
+    setFactValueInput("");
     markDirty();
   }
 
@@ -683,6 +702,95 @@ export function BrandProfileEditorClient({ profile, allProfiles }: Props) {
                   </button>
                 </div>
               ))}
+            </div>
+          </section>
+
+          <SectionDivider />
+
+          {/* ---- Fact registry ---- */}
+          <section className="space-y-6">
+            <div className="flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                     <History size={14} />
+                  </div>
+                  <h3 className="text-[11px] font-bold text-foreground uppercase tracking-widest">Fact Registry</h3>
+               </div>
+               <Badge variant="neutral" size="sm" className="opacity-40">Reusable Evidence</Badge>
+            </div>
+            
+            <p className="text-[12px] font-medium text-muted-foreground/60 leading-relaxed max-w-lg">
+              Pre-save specific statistics, case study outcomes, or product data to quickly populate Pause Card answers during clean-up.
+            </p>
+
+            <div className="space-y-4 max-w-xl">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Input
+                  value={factLabelInput}
+                  onChange={(e) => setFactLabelInput(e.target.value)}
+                  placeholder="Fact label (e.g. Founding Year)"
+                  className="h-14 px-6 text-sm font-bold rounded-[22px] bg-muted/20 border-border/50 focus:bg-background transition-all"
+                />
+                <div className="flex-1 relative">
+                  <Input
+                    value={factValueInput}
+                    onChange={(e) => setFactValueInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addSavedFact();
+                      }
+                    }}
+                    placeholder="Fact value (e.g. 2021)"
+                    className="h-14 px-6 text-sm font-bold rounded-[22px] bg-muted/20 border-border/50 focus:bg-background transition-all pr-12"
+                  />
+                  <History size={16} className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground/30 pointer-events-none" />
+                </div>
+                <Button
+                  variant="primary"
+                  className="h-14 w-14 rounded-full p-0 flex items-center justify-center bg-primary text-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 font-bold shrink-0"
+                  onClick={addSavedFact}
+                  disabled={!factLabelInput.trim() || !factValueInput.trim()}
+                >
+                  <Plus size={20} strokeWidth={3} />
+                </Button>
+              </div>
+
+              {/* Fact List */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {savedFacts.map((fact, idx) => (
+                  <div
+                    key={`${fact.label}-${idx}`}
+                    className="group/fact p-4 bg-muted/10 border border-border/50 rounded-2xl flex items-center justify-between hover:bg-muted/20 transition-all"
+                  >
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-primary truncate">
+                        {fact.label}
+                      </span>
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {fact.value}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSavedFacts((prev) => prev.filter((_, i) => i !== idx));
+                        markDirty();
+                      }}
+                      className="p-2 opacity-0 group-hover/fact:opacity-100 transition-all rounded-lg hover:bg-accent/10 text-muted-foreground hover:text-accent"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {savedFacts.length === 0 && (
+                <div className="py-8 border-2 border-dashed border-border/30 rounded-[32px] flex flex-col items-center justify-center bg-muted/5 opacity-40">
+                   <History size={24} className="mb-2 text-muted-foreground/20" />
+                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">No facts archived</span>
+                </div>
+              )}
             </div>
           </section>
 

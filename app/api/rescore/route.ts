@@ -39,21 +39,50 @@ export async function POST(req: Request) {
 
     const { data: cleanup, error: cleanError } = await supabase
       .from("cleanups")
-      .select("final_content")
+      .select("id, final_content, paragraphs")
       .eq("document_id", documentId)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
 
-    if (cleanError || !cleanup || !cleanup.final_content) {
-      console.warn("[RESCORE] Cleanup check failed:", { 
+    if (cleanError || !cleanup) {
+      console.warn("[RESCORE] Cleanup fetch failed:", { 
         documentId,
         cleanError, 
-        hasCleanup: !!cleanup, 
-        hasFinalContent: !!cleanup?.final_content 
+        hasCleanup: !!cleanup
       });
       return NextResponse.json(
-        { error: "Document clean-up is not complete." },
+        { error: "Document clean-up record not found." },
+        { status: 400 }
+      );
+    }
+
+    let finalContent = cleanup.final_content;
+
+    // If final_content is missing, calculate it from paragraphs
+    if (!finalContent && cleanup.paragraphs) {
+      const paragraphs = cleanup.paragraphs as any[];
+      finalContent = paragraphs
+        .map(p => {
+          if (p.type === 'clean') return p.cleaned || "";
+          if (p.type === 'pause') return p.original || ""; // Fallback to original for unresolved cards
+          return "";
+        })
+        .filter(Boolean)
+        .join("\n\n");
+
+      // Persist it for future requests
+      if (finalContent) {
+        await supabase
+          .from("cleanups")
+          .update({ final_content: finalContent })
+          .eq("id", cleanup.id);
+      }
+    }
+
+    if (!finalContent) {
+      return NextResponse.json(
+        { error: "Document clean-up is not complete (missing content)." },
         { status: 400 }
       );
     }
@@ -88,13 +117,13 @@ export async function POST(req: Request) {
     // 4. Send to Anthropic (same as /api/analyse but with cleaned content)
     const anthropicStart = Date.now();
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 4000,
       system: systemPrompt,
       tools: [diagnosisTool],
       tool_choice: { type: "tool", name: DIAGNOSIS_TOOL_NAME },
       messages: [
-        { role: "user", content: cleanup.final_content }
+        { role: "user", content: finalContent }
       ],
     });
     const latencyMs = Date.now() - anthropicStart;
@@ -103,7 +132,7 @@ export async function POST(req: Request) {
       documentId,
       eventType: "rescore",
       eventCategory: "ai",
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
       latencyMs,
       wordCount: document.word_count,
       usage: message.usage,
@@ -160,7 +189,7 @@ export async function POST(req: Request) {
     console.error("[CHQ-002] Anthropic API error in /api/rescore:", {
       message: errMessage,
       status: errStatus,
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
     });
     return NextResponse.json(
       { error: "Score recalculation failed", scores: null },

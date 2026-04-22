@@ -24,8 +24,8 @@ interface SignalBlockProps {
 
 export function getScoreColors(score: number) {
   if (score <= 3) return { text: "text-accent", bg: "bg-accent", border: "border-accent/10", light: "bg-accent/5", glow: "shadow-accent/20" };
-  if (score <= 6) return { text: "text-secondary", bg: "bg-secondary", border: "border-secondary/10", light: "bg-secondary/5", glow: "shadow-secondary/20" };
-  return { text: "text-emerald-500", bg: "bg-emerald-500", border: "border-emerald-500/10", light: "bg-emerald-500/5", glow: "shadow-emerald-20/20" };
+  if (score <= 6) return { text: "text-amber-600", bg: "bg-secondary", border: "border-amber-500/20", light: "bg-amber-500/8", glow: "shadow-amber-500/20" };
+  return { text: "text-emerald-500", bg: "bg-emerald-500", border: "border-emerald-500/10", light: "bg-emerald-500/5", glow: "shadow-emerald-500/20" };
 }
 
 export function SignalBlock({ name, signal, defaultExpanded = false, issueCount, isActive, onViewIssues }: SignalBlockProps) {

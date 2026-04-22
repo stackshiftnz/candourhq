@@ -11,17 +11,21 @@ import {
   X, 
   HelpCircle, 
   Lightbulb,
-  ArrowRight
+  ArrowRight,
+  History,
+  ChevronDown
 } from "lucide-react";
 
 interface PauseCardProps {
   paragraph: CleanupParagraphType;
   onResolve: (answer: string | null, skipped: boolean) => void;
+  savedFacts?: { label: string; value: string }[];
 }
 
-export function PauseCard({ paragraph, onResolve }: PauseCardProps) {
+export function PauseCard({ paragraph, onResolve, savedFacts = [] }: PauseCardProps) {
   const [answer, setAnswer] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFactRegistryOpen, setIsFactRegistryOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,12 +87,61 @@ export function PauseCard({ paragraph, onResolve }: PauseCardProps) {
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
                 placeholder="Declare the missing fact..."
-                className="h-14 px-6 rounded-2xl bg-muted/50 border-border/50 focus:border-secondary/50 focus:ring-secondary/10 text-base font-medium shadow-inner"
+                className="h-14 px-6 rounded-2xl bg-muted/50 border-border/50 focus:border-secondary/50 focus:ring-secondary/10 text-base font-medium shadow-inner pr-12"
                 autoFocus
               />
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
-                 <HelpCircle size={18} />
-              </div>
+              
+              {savedFacts.length > 0 && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                   <button
+                     type="button"
+                     onClick={() => setIsFactRegistryOpen(!isFactRegistryOpen)}
+                     className={cn(
+                       "p-2 rounded-xl transition-all flex items-center gap-1.5",
+                       isFactRegistryOpen 
+                        ? "bg-secondary text-white shadow-lg shadow-secondary/20" 
+                        : "bg-muted/50 text-muted-foreground/40 hover:text-secondary hover:bg-secondary/10"
+                     )}
+                     title="Access Fact Registry"
+                   >
+                     <History size={16} />
+                     <ChevronDown size={12} className={cn("transition-transform duration-300", isFactRegistryOpen && "rotate-180")} />
+                   </button>
+                </div>
+              )}
+
+              {/* Fact Registry Dropdown */}
+              {isFactRegistryOpen && savedFacts.length > 0 && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setIsFactRegistryOpen(false)} 
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-72 max-h-64 overflow-y-auto z-50 p-2 bg-background/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-top-2">
+                    <div className="px-3 py-2 border-b border-border/30 mb-1">
+                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Fact Registry</span>
+                    </div>
+                    {savedFacts.map((fact, idx) => (
+                      <button
+                        key={`${fact.label}-${idx}`}
+                        type="button"
+                        onClick={() => {
+                          setAnswer(fact.value);
+                          setIsFactRegistryOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-secondary/10 group/item transition-colors flex flex-col gap-0.5"
+                      >
+                        <span className="text-[9px] font-bold uppercase tracking-wide text-secondary/60 group-hover/item:text-secondary">
+                          {fact.label}
+                        </span>
+                        <span className="text-[13px] font-medium text-foreground truncate">
+                          {fact.value}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
             <Button 
               type="submit"

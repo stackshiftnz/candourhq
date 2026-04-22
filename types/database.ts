@@ -13,6 +13,11 @@ export type Json =
 // JSONB column types
 // ---------------------------------------------------------------------------
 
+export interface SavedFact {
+  label: string
+  value: string
+}
+
 export interface DiagnosisIssue {
   phrase: string
   category:
@@ -80,6 +85,7 @@ export interface BrandProfileSnapshot {
   writing_examples: string[]
   banned_phrases: string[]
   approved_phrases: string[]
+  saved_facts: SavedFact[]
   captured_at: string
 }
 
@@ -153,6 +159,7 @@ export interface Database {
           writing_examples: string[]
           banned_phrases: string[]
           approved_phrases: string[]
+          saved_facts: SavedFact[]
           is_default: boolean
           created_at: string
           updated_at: string
@@ -166,6 +173,7 @@ export interface Database {
           writing_examples?: string[]
           banned_phrases?: string[]
           approved_phrases?: string[]
+          saved_facts?: SavedFact[]
           is_default?: boolean
           created_at?: string
           updated_at?: string
@@ -179,6 +187,7 @@ export interface Database {
           writing_examples?: string[]
           banned_phrases?: string[]
           approved_phrases?: string[]
+          saved_facts?: SavedFact[]
           is_default?: boolean
           created_at?: string
           updated_at?: string

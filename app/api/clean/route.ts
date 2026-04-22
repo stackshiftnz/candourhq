@@ -87,6 +87,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const documentId: string | undefined = body.documentId;
   const ambition: RefinementAmbition = body.ambition || "conservative";
+  const selectedIssueIds: string[] | undefined = body.selectedIssueIds;
 
   if (!documentId) {
     return NextResponse.json({ error: "No documentId provided." }, { status: 400 });
@@ -144,7 +145,11 @@ export async function POST(req: Request) {
     .map((issue) => ({
       ...issue,
       issue_id: issue.issue_id || `${issue.priority}-${issue.char_start}-${issue.char_end}`,
-    }));
+    }))
+    .filter((issue) => {
+      if (!selectedIssueIds || selectedIssueIds.length === 0) return true;
+      return selectedIssueIds.includes(issue.issue_id!);
+    });
 
   const languageVariant = brandProfile?.language_variant || document.language_variant || "en-US";
   const systemPrompt = getCleanupSystemPrompt({
@@ -192,15 +197,21 @@ export async function POST(req: Request) {
         }
       };
 
-      const heartbeat = setInterval(() => send("ping", { t: Date.now() }), 15_000);
+      const heartbeat = setInterval(() => send("ping", { t: Date.now() }), 8_000);
 
       try {
         await supabase.from("documents").update({ status: "cleaning" }).eq("id", docId);
         send("status", { status: "cleaning" });
 
+        const originalContent = (document.original_content || "").trim();
+        const expectedParagraphCount = Math.max(
+          originalContent.split(/\n\s*\n/).filter((p: string) => p.trim()).length,
+          1
+        );
+
         const anthropicStart = Date.now();
         const msgStream = anthropic.messages.stream({
-          model: "claude-sonnet-4-6",
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 20000,
           system: [systemBlock],
           tools: [cleanupTool],
@@ -224,6 +235,7 @@ export async function POST(req: Request) {
             paragraphs.forEach((p) => {
               send("paragraph", { index: emitted, paragraph: p });
               emitted++;
+              send("progress", { emitted, expected: expectedParagraphCount });
             });
           }
         }
@@ -236,7 +248,7 @@ export async function POST(req: Request) {
           documentId: docId,
           eventType: "clean",
           eventCategory: "ai",
-          model: "claude-sonnet-4-6",
+          model: "claude-haiku-4-5-20251001",
           latencyMs,
           wordCount: document.word_count,
           usage: finalMessage.usage,
@@ -316,7 +328,7 @@ export async function POST(req: Request) {
         console.error("[CHQ-CLEAN] Stream failure:", {
           message: errMessage,
           status: errStatus,
-          model: "claude-sonnet-4-6",
+          model: "claude-haiku-4-5-20251001",
           docId
         });
         
@@ -326,8 +338,9 @@ export async function POST(req: Request) {
           console.error("[CHQ-CLEAN] Status reset failed:", dbErr);
         }
         
-        send("error", { 
+        send("error", {
           error: errMessage || "Clean-up failed unexpectedly.",
+          phase: "generating",
           details: error instanceof Error ? error.stack?.slice(0, 200) : "No stack trace available"
         });
       } finally {

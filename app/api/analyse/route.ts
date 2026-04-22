@@ -9,7 +9,7 @@ import { diagnosisTool, DIAGNOSIS_TOOL_NAME } from "@/lib/anthropic/tool-schemas
 import { recordApiEvent } from "@/lib/telemetry/record";
 import type { TextBlockParam } from "@anthropic-ai/sdk/resources/messages";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 function correctIssuePosition(
   content: string,
@@ -126,24 +126,39 @@ export async function POST(req: Request) {
       text: systemPrompt,
       cache_control: { type: "ephemeral" },
     };
-    const anthropicStart = Date.now();
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 4000,
+    const anthropicParams = {
+      model: "claude-haiku-4-5-20251001" as const,
+      max_tokens: 8192,
       system: [systemBlock],
       tools: [diagnosisTool],
-      tool_choice: { type: "tool", name: DIAGNOSIS_TOOL_NAME },
+      tool_choice: { type: "tool" as const, name: DIAGNOSIS_TOOL_NAME },
       messages: [
-        { role: "user", content: document.original_content }
+        { role: "user" as const, content: document.original_content }
       ],
-    });
+    };
+
+    const anthropicStart = Date.now();
+    let message;
+    try {
+      // Disable SDK retries on first attempt so we control the retry cadence ourselves.
+      message = await anthropic.messages.create(anthropicParams, { maxRetries: 0 });
+    } catch (firstErr: unknown) {
+      const firstStatus = (firstErr as { status?: number }).status;
+      // Retry once after 5 s on rate-limit (429) or Anthropic overload (529).
+      if (firstStatus === 429 || firstStatus === 529) {
+        await new Promise(r => setTimeout(r, 5000));
+        message = await anthropic.messages.create(anthropicParams, { maxRetries: 1 });
+      } else {
+        throw firstErr;
+      }
+    }
     const latencyMs = Date.now() - anthropicStart;
     await recordApiEvent({
       userId: session.user.id,
       documentId,
       eventType: "analyse",
       eventCategory: "ai",
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
       latencyMs,
       wordCount: document.word_count,
       usage: message.usage,
@@ -237,15 +252,26 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     const errMessage = error instanceof Error ? error.message : String(error);
     const errStatus = (error as { status?: number }).status ?? "unknown";
-    console.error("[CHQ-001] Anthropic API error in /api/analyse:", {
-      message: errMessage,
-      status: errStatus,
-      model: "claude-sonnet-4-6",
-    });
-    if (documentId) {
-      const supabase = await createClient();
-      await supabase.from("documents").update({ status: "pending" }).eq("id", documentId);
-    }
+    const errType = (error as { constructor?: { name?: string } }).constructor?.name ?? "UnknownError";
+    console.error("[CHQ-001] /api/analyse failed:", { type: errType, status: errStatus, message: errMessage });
+
+    const supabaseErr = await createClient();
+    await Promise.all([
+      // Reset document so the user can retry
+      documentId
+        ? supabaseErr.from("documents").update({ status: "pending" }).eq("id", documentId)
+        : Promise.resolve(),
+      // Record error to api_events for visibility
+      supabaseErr.from("api_events").insert({
+        user_id: null,
+        document_id: documentId,
+        event_type: "analyse_error",
+        event_category: "system",
+        model: "claude-haiku-4-5-20251001",
+        metadata: { error_type: errType, error_status: errStatus, error_message: errMessage },
+      }),
+    ]);
+
     return NextResponse.json(
       { error: "Analysis failed. Your content has been saved — try again from History." },
       { status: 500 }

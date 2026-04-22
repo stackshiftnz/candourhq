@@ -19,13 +19,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Content too short for preview" }, { status: 400 });
     }
 
-    // Capture first 150 words
-    const first150Words = text.trim().split(/\s+/).slice(0, 150).join(" ");
+    // Capture first 250 words for a better quality signal
+    const first150Words = text.trim().split(/\s+/).slice(0, 250).join(" ");
 
     const anthropicStart = Date.now();
     const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 150,
+      model: "claude-sonnet-4-6",
+      max_tokens: 200,
       system: PREVIEW_SYSTEM_PROMPT,
       messages: [
         { role: "user", content: `Text to preview:\n\n${first150Words}` }
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       documentId: null,
       eventType: "preview_scan",
       eventCategory: "ai",
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-6",
       latencyMs: Date.now() - anthropicStart,
       usage: response.usage,
     });
@@ -52,6 +52,10 @@ export async function POST(req: Request) {
         // Ensure all required fields exist
         if (!previewData.scoreRange || !previewData.headline) {
            throw new Error("Missing required preview fields");
+        }
+        // Default issueCount to 0 if model omits it
+        if (typeof previewData.issueCount !== "number") {
+          previewData.issueCount = 0;
         }
         
         return NextResponse.json(previewData);
