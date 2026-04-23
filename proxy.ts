@@ -24,9 +24,9 @@ const AUTH_ONLY_ROUTES = ['/signin', '/signup']
 // Everything else (/reset-password, /update-password, /, /api/*, etc.)
 // is public — no redirect in either direction, just session refresh.
 
-// ─── Middleware ───────────────────────────────────────────────────────────────
+// ─── Proxy ───────────────────────────────────────────────────────────────────
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Start with a plain pass-through response so we can forward cookies.
   let supabaseResponse = NextResponse.next({ request })
 
@@ -93,7 +93,7 @@ export async function middleware(request: NextRequest) {
   return supabaseResponse
 }
 
-// Apply middleware to all routes except static assets and images.
+// Apply proxy to all routes except static assets and images.
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',

@@ -167,6 +167,9 @@ export default function CleanupPage() {
               } else if (evtName === "complete") {
                 clearTimeout(hardTimer);
                 if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+                if (Array.isArray(parsed.paragraphs) && parsed.paragraphs.length > 0) {
+                  setParagraphs(parsed.paragraphs);
+                }
                 setStreamComplete(true);
                 setStreamRunning(false);
                 setStreamProgress(100);
@@ -248,6 +251,10 @@ export default function CleanupPage() {
         setUserEditIndices(
           new Set(((cleanupData.user_edits || []) as any[]).map((e) => e.paragraph_index as number))
         );
+        setStreamComplete(true);
+      } else if (["cleaned", "submitted", "approved", "exported"].includes(docData.status)) {
+        // Guard: if doc is beyond the cleanup stage but no cleanup record was found,
+        // treat stream as complete so we don't re-trigger a new cleanup stream.
         setStreamComplete(true);
       }
 

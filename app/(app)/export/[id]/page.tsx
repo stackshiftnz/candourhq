@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server-user";
 import { notFound } from "next/navigation";
 import ExportContent from "@/components/export/ExportContent";
 
+export const dynamic = "force-dynamic";
+
 interface ExportPageProps {
   params: Promise<{
     id: string;

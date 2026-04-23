@@ -90,10 +90,10 @@ export function ScoreBreakdownCard({
         {/* Global Average Sync Section */}
         <div className="py-6 px-6 bg-muted/40 border-t border-border flex justify-between items-center relative overflow-hidden group/average">
           <div className="flex flex-col relative z-10 transition-transform group-hover/average:translate-x-1 duration-300">
-             <span className="text-[11px] text-foreground font-bold tracking-tight mb-0.5">Average Precision</span>
+             <span className="text-[11px] text-foreground font-bold tracking-tight mb-0.5">Overall Average</span>
              <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Global Synchronization</span>
+                <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Combined score across all dimensions</span>
              </div>
           </div>
           
@@ -130,14 +130,14 @@ export function ScoreBreakdownCard({
           <div className="flex items-center gap-3 text-accent bg-accent/5 p-4 rounded-2xl border border-accent/10">
              <Info size={14} className="shrink-0" />
              <p className="text-[11px] font-bold leading-tight">
-               System Recalculation Failure. Utilizing estimated threshold values.
+               Score recalculation failed. Showing estimated values.
              </p>
           </div>
         ) : (
           <div className="flex items-start gap-3 opacity-60">
              <CircleCheck size={14} className="mt-0.5 text-primary" />
              <p className="text-[11px] font-medium text-muted-foreground leading-relaxed">
-               Final analysis PASS completed. Recalculated results leverage updated linguistic vectors for maximum precision.
+               Final scores calculated from the cleaned content. Improvements reflect all changes applied during cleanup.
              </p>
           </div>
         )}

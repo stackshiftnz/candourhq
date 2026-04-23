@@ -61,7 +61,7 @@ export function ProvenanceRecordCard({
       <div className="p-6 border-b border-border bg-muted/20">
         <div className="flex items-center gap-2 mb-2">
            <Shield size={12} className="text-primary" />
-           <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">Immutable Audit Record</span>
+           <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">Document Record</span>
         </div>
         <h3 className="text-sm font-bold text-foreground truncate">
           {title}
@@ -75,14 +75,14 @@ export function ProvenanceRecordCard({
       </div>
 
       <div className="flex flex-col">
-        {row("Content Class", contentType.replace("_", " "), <FileText size={12} />)}
-        {row("Lexical Load", `${wordCount} vectors`, <Hash size={12} />)}
-        {row("Linguistic Variant", language, <Globe size={12} />)}
-        {row("Brand Matrix", brandProfile, <User size={12} />)}
-        {row("Threats Identified", issuesFound, <CircleAlert size={12} />)}
-        {row("Threats Neutralized", `${issuesResolved} / ${issuesFound}`, <CheckCheck size={12} />)}
-        {row("State Interventions", `${pauseCardsAnswered} / ${pauseCardsTotal}`, <MessageSquare size={12} />)}
-        {row("Manual Overlays", manualEditsCount > 0 ? manualEditsCount : "Zero", <Pencil size={12} />)}
+        {row("Content Type", contentType.replace("_", " "), <FileText size={12} />)}
+        {row("Word Count", `${wordCount.toLocaleString()} words`, <Hash size={12} />)}
+        {row("Language", language, <Globe size={12} />)}
+        {row("Brand Profile", brandProfile, <User size={12} />)}
+        {row("Issues Found", issuesFound, <CircleAlert size={12} />)}
+        {row("Issues Resolved", `${issuesResolved} / ${issuesFound}`, <CheckCheck size={12} />)}
+        {pauseCardsTotal > 0 && row("Decisions Made", `${pauseCardsAnswered} / ${pauseCardsTotal}`, <MessageSquare size={12} />)}
+        {row("Manual Edits", manualEditsCount > 0 ? manualEditsCount : "None", <Pencil size={12} />)}
         {row(
           "Snapshot Status",
           <div className={cn(

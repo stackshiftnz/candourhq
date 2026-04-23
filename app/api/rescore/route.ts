@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { anthropic } from "@/lib/anthropic/client";
+import { openai } from "@/lib/openai/client";
+import { scoringFunction, SCORING_FUNCTION_NAME } from "@/lib/openai/scoring-tool";
 import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { DiagnosisResponse, LanguageVariant, ContentType } from "@/lib/anthropic/types";
 import { getDiagnoseSystemPrompt } from "@/lib/anthropic/prompts/diagnose";
-import { diagnosisTool, DIAGNOSIS_TOOL_NAME } from "@/lib/anthropic/tool-schemas";
 import { calculateSignalScore, calculateAverageScore } from "@/lib/utils/scoring";
-import { recordApiEvent } from "@/lib/telemetry/record";
 
 export const maxDuration = 60;
 
@@ -46,11 +46,6 @@ export async function POST(req: Request) {
       .single();
 
     if (cleanError || !cleanup) {
-      console.warn("[RESCORE] Cleanup fetch failed:", { 
-        documentId,
-        cleanError, 
-        hasCleanup: !!cleanup
-      });
       return NextResponse.json(
         { error: "Document clean-up record not found." },
         { status: 400 }
@@ -61,19 +56,18 @@ export async function POST(req: Request) {
 
     // If final_content is missing, calculate it from paragraphs
     if (!finalContent && cleanup.paragraphs) {
-      const paragraphs = cleanup.paragraphs as any[];
+      const paragraphs = cleanup.paragraphs as Array<{ type: string; cleaned?: string; original?: string }>;
       finalContent = paragraphs
         .map(p => {
           if (p.type === 'clean') return p.cleaned || "";
-          if (p.type === 'pause') return p.original || ""; // Fallback to original for unresolved cards
+          if (p.type === 'pause') return p.original || "";
           return "";
         })
         .filter(Boolean)
         .join("\n\n");
 
-      // Persist it for future requests
       if (finalContent) {
-        await supabase
+        await supabaseAdmin
           .from("cleanups")
           .update({ final_content: finalContent })
           .eq("id", cleanup.id);
@@ -114,83 +108,60 @@ export async function POST(req: Request) {
       contentType: document.content_type as ContentType,
     });
 
-    // 4. Send to Anthropic (same as /api/analyse but with cleaned content)
-    const anthropicStart = Date.now();
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+    // 4. Score with GPT-4o-mini at temperature=0 for deterministic output
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      seed: 42,
       max_tokens: 4000,
-      system: systemPrompt,
-      tools: [diagnosisTool],
-      tool_choice: { type: "tool", name: DIAGNOSIS_TOOL_NAME },
       messages: [
-        { role: "user", content: finalContent }
+        { role: "system", content: systemPrompt },
+        { role: "user",   content: finalContent },
       ],
-    });
-    const latencyMs = Date.now() - anthropicStart;
-    await recordApiEvent({
-      userId: session.user.id,
-      documentId,
-      eventType: "rescore",
-      eventCategory: "ai",
-      model: "claude-haiku-4-5-20251001",
-      latencyMs,
-      wordCount: document.word_count,
-      usage: message.usage,
+      tools: [{ type: "function", function: scoringFunction }],
+      tool_choice: { type: "function", function: { name: SCORING_FUNCTION_NAME } },
     });
 
-    const toolUseBlock = message.content.find(b => b.type === "tool_use" && b.name === DIAGNOSIS_TOOL_NAME);
-    if (!toolUseBlock || toolUseBlock.type !== "tool_use") {
-      console.error("Rescore tool_use block missing. Raw content:", message.content);
+    const rawToolCall = completion.choices[0]?.message?.tool_calls?.[0];
+    if (!rawToolCall || rawToolCall.type !== "function" || rawToolCall.function.name !== SCORING_FUNCTION_NAME) {
+      console.error("[RESCORE] Scoring function call missing. Finish reason:", completion.choices[0]?.finish_reason);
       return NextResponse.json(
         { error: "Score recalculation failed", scores: null },
         { status: 500 }
       );
     }
-    const diagnosis = toolUseBlock.input as DiagnosisResponse;
 
-    // 6. Calculate finalized scores
+    const diagnosis = JSON.parse(rawToolCall.function.arguments) as DiagnosisResponse;
+
+    // 5. Calculate finalised scores
     const substance = calculateSignalScore(diagnosis.signals.substance.dimensions);
-    const style = calculateSignalScore(diagnosis.signals.style.dimensions);
-    const trust = calculateSignalScore(diagnosis.signals.trust.dimensions);
-    const average = calculateAverageScore(substance, style, trust);
+    const style     = calculateSignalScore(diagnosis.signals.style.dimensions);
+    const trust     = calculateSignalScore(diagnosis.signals.trust.dimensions);
+    const average   = calculateAverageScore(substance, style, trust);
 
-    // 7. Write final scores to diagnoses record
-    const { error: updateError } = await supabase
+    // 6. Write final scores to diagnoses record (admin client bypasses RLS — no UPDATE policy exists)
+    const { error: updateError } = await supabaseAdmin
       .from("diagnoses")
       .update({
         substance_score_final: substance,
-        style_score_final: style,
-        trust_score_final: trust,
-        average_score_final: average
+        style_score_final:     style,
+        trust_score_final:     trust,
+        average_score_final:   average,
       })
       .eq("document_id", documentId);
 
     if (updateError) {
-      console.error("Diagnosis score update error:", updateError);
+      console.error("[RESCORE] Diagnosis score update error:", updateError);
       throw updateError;
     }
 
-    // Note: document.status -> 'exported' is set by the export page RSC on mount,
-    // independent of rescore success. This keeps the lifecycle correct even when
-    // rescore times out or fails.
-
     return NextResponse.json({
-      scores: {
-        substance,
-        style,
-        trust,
-        average
-      }
+      scores: { substance, style, trust, average }
     });
 
   } catch (error: unknown) {
     const errMessage = error instanceof Error ? error.message : String(error);
-    const errStatus = (error as { status?: number }).status ?? "unknown";
-    console.error("[CHQ-002] Anthropic API error in /api/rescore:", {
-      message: errMessage,
-      status: errStatus,
-      model: "claude-haiku-4-5-20251001",
-    });
+    console.error("[RESCORE] Error:", { message: errMessage, documentId });
     return NextResponse.json(
       { error: "Score recalculation failed", scores: null },
       { status: 500 }

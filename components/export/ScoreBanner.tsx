@@ -57,16 +57,16 @@ export function ScoreBanner({
              "text-[10px] font-bold uppercase tracking-widest",
              isFullyResolved ? "text-green-500" : "text-secondary"
            )}>
-             {isFullyResolved ? "Verification Complete" : "Optimization Threshold Met"}
+             {isFullyResolved ? "All Issues Resolved" : "Improvements Applied"}
            </span>
         </div>
         
         <div>
            <h2 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-3">
-              {isFullyResolved ? "Perfect Performance State" : "Maximum Available Lift Applied"}
+              {isFullyResolved ? "Clean — No Issues Remaining" : "Content Optimised"}
            </h2>
            <p className="text-sm font-medium text-muted-foreground/60 leading-relaxed mt-1">
-             {resolvedCount} of {totalCount} vectors synchronized · Targeted {profileName} alignment
+             {resolvedCount} of {totalCount} issues resolved · {profileName} brand profile applied
            </p>
         </div>
       </div>
@@ -74,7 +74,7 @@ export function ScoreBanner({
       <div className="flex items-center gap-8 relative z-10">
         <div className="flex flex-col items-end opacity-40">
            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-1 px-4">
-              Global Composite
+              Original Score
            </p>
            <span className="text-2xl font-bold text-foreground line-through decoration-muted-foreground decoration-2">
              {originalScore.toFixed(1)}
@@ -90,7 +90,7 @@ export function ScoreBanner({
              "text-[10px] font-bold uppercase tracking-widest mb-1",
              isFullyResolved ? "text-green-500" : "text-secondary"
           )}>
-             Final Vector
+             Final Score
           </span>
           <div className="flex items-baseline gap-1 min-w-[80px] justify-end">
             {isPending ? (
@@ -107,7 +107,7 @@ export function ScoreBanner({
                    <span className="text-lg font-bold text-muted-foreground/20">/10</span>
                  </div>
                  <div className="flex items-center gap-1 text-[8px] font-bold uppercase text-accent">
-                    <Info size={8} /> Delta Variance Likely
+                    <Info size={8} /> Using estimate
                  </div>
               </div>
             ) : (
